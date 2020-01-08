@@ -1,0 +1,12 @@
+# Hack to ignore files with no extension
+*
+!*.*
+!*/
+
+# Normal
+*.sw?
+tags*
+CMakeFiles
+CMakeCache.txt
+*.cmake
+Makefile
