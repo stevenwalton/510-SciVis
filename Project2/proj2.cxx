@@ -241,10 +241,34 @@ void
 BoundingBoxForCell(const float *X, const float *Y, const int *dims,
                    int cellId, float *bbox)
 {
-    bbox[0] = -100;
-    bbox[1] = +100;
-    bbox[2] = -100;
-    bbox[3] = +100;
+    int numCells = GetNumberOfCells(dims);
+    if (cellId >= numCells)
+    {
+        bbox[0] = -100;
+        bbox[1] = +100;
+        bbox[2] = -100;
+        bbox[3] = +100;
+    }
+    else if (cellId == 0)
+    {
+        bbox[0] = X[0];
+        bbox[1] = X[1];
+        bbox[2] = Y[0];
+        bbox[3] = Y[1];
+    }
+    else
+    {
+        int idx[2];
+        idx[0] = 0;
+        idx[1] = cellId;
+        int pointIndex = GetPointIndex(idx, dims);
+        int cellIndex = GetCellIndex(idx, dims);
+        GetLogicalCellIndex(idx, cellId, dims);
+        bbox[0] = X[idx[0]];
+        bbox[1] = X[idx[0]+1];
+        bbox[2] = Y[idx[1]];
+        bbox[3] = Y[idx[1]+1];
+    }
     // IMPLEMENT ME!
 }
 
@@ -328,12 +352,6 @@ int main()
              << f << endl;
     }
     
-   
-    cerr << "Infinite loop here, else Windows people may have the terminal "
-         << "disappear before they see the output."
-         << " Remove these lines if they annoy you." << endl;
-    cerr << "(press Ctrl-C to exit program)" << endl;
-    while (1) ; 
 }
 
 
