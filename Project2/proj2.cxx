@@ -314,46 +314,24 @@ CountNumberOfStraddlingCells(const float *X, const float *Y, const int *dims,
                              const float *F)
 {
     int runningCount = 0;
-    int numIndices = dims[0] * dims[1];
-    printf("Dims[0] = %d", dims[0]);
-    for (int i = 0; i < numIndices; ++i)
+    int idx[2] = {0,0};
+    for (int y_loop = 0; y_loop < dims[1] - 1; ++y_loop)
     {
-        double left = 0;
-        double right = 0;
-        double above = 0;
-        double below = 0;
-        // If adjacent value exists then set it
-        if (i%dims[0] != 0)                       // Left
-            left = F[i-1];
-        //if ((i%dims[0]) < dims[0])               // Right
-        if ((i%dims[0]) < (dims[0]-1))
+        for (int x_loop = 0; x_loop < dims[0] - 1; ++x_loop)
         {
-            if (i < dims[0]+2)
-                printf("%d: %d %f\n", i%dims[0] < dims[0], i, F[i+1]);
-            right = F[i+1];
-        }
-        if (i >= dims[0])                         // Below
-            below = F[i - dims[0] + (i%dims[0])];
-        if (i < numIndices - dims[0])             // Above
-            above = F[i+dims[0] + (i%dims[0])];
+            int index = y_loop*dims[0] + (x_loop%dims[0]);
+            float lower_left = F[index];
+            float lower_right = F[index + 1];
+            int upper_left_index = (y_loop+1)*dims[0] + (x_loop%dims[0]);
+            float upper_right = F[upper_left_index+1];
+            float upper_left = F[upper_left_index];
 
-        // Is adjacent value within criteria?
-        if (left < 0 && F[i] > 0 || left > 0 && F[i] < 0)
+            if ( (lower_left != 0) && (lower_right/lower_left < 0) )
                 runningCount++;
-        else if (right < 0 && F[i] > 0 || right > 0 && F[i] < 0)
+            else if ( (lower_left != 0) && (upper_right/lower_left < 0) )
                 runningCount++;
-        else if (below < 0 && F[i] > 0 || below > 0 && F[i] < 0)
+            else if ( (lower_left != 0) && (upper_left/lower_left < 0) )
                 runningCount++;
-        else if (above < 0 && F[i] > 0 || above > 0 && F[i] < 0)
-                runningCount++;
-
-        //if ((i > dims[0] + 1) && (i <= dims[0] + 2))
-        if (i == 1)
-        {
-            printf("\n       %0.3f\n%0.3f  %0.3f   %0.3f\n      %0.3f\n", above, left, right, below);
-            printf("\n       %0.3f\n%0.3f  %0.3f   %0.3f\n      %0.3f\n", F[i+dims[0] + (i%dims[0])], F[i-1], F[i], F[i+1], F[i-dims[0] + (i%dims[0])]);
-            printf("\n   %d\n%d   %d   %d\n   %d\n", i+dims[0] + (i%dims[0]), i-1, i, i+1, i-dims[0] + (i%dims[0]));
-            printf("\n       %0.3f\n%0.3f  %0.3f   %0.3f\n      %0.3f\n", F[33], F[0], F[1], F[2], F[-29]);
         }
     }
     return runningCount;
