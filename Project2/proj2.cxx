@@ -208,11 +208,32 @@ void GetLogicalCellIndex(int *idx, int cellId, const int *dims)
 //
 // ****************************************************************************
 
+// TODO
 float
 EvaluateFieldAtLocation(const float *pt, const int *dims, 
                         const float *X, const float *Y, const float *F)
 {
-    return 0; // IMPLEMENT ME!!
+    /*
+    //printf("Location (%f,%f), first number of field is %f\n", pt[0], pt[1], F[0]);
+    int idx[2] = {0,0};
+    if (pt[0] > X[dims[0]-1] || pt[1] > Y[dims[1]-1] || pt[0] < X[0] || pt[1] < Y[0])
+    {
+        //printf("Out of bounds!!!! (%d,%d) is not within (%d,%d)\n", pt[0], pt[1], X[dims[0]-1], Y[dims[1]-1]);
+        return 0;
+
+    }
+    for(int x_loop = 0; x_loop < dims[0]; ++x_loop)
+        if(pt[0] > X[x_loop]) idx[0] = x_loop;
+    for(int y_loop = 0; y_loop < dims[0]; ++y_loop)
+        if(pt[0] > Y[y_loop]) idx[1] = y_loop;
+    int index = GetPointIndex(idx, dims);
+    float bbox[4] = {0,0,0,0};
+    BoundingBoxForCell(X,Y,dims, index, bbox);
+    printf("Got index %d with field value %f\n", index, F[index]);
+    printf("Got bounding box (%f,%f,%f,%f)\n", bbox[0], bbox[1], bbox[2], bbox[3]);
+    return F[index]; // IMPLEMENT ME!!
+    */
+    return 0;
 }
 
 // ****************************************************************************
@@ -258,9 +279,7 @@ BoundingBoxForCell(const float *X, const float *Y, const int *dims,
     }
     else
     {
-        int idx[2];
-        idx[0] = 0;
-        idx[1] = cellId;
+        int idx[2] = {0,0};
         int pointIndex = GetPointIndex(idx, dims);
         int cellIndex = GetCellIndex(idx, dims);
         GetLogicalCellIndex(idx, cellId, dims);
@@ -269,7 +288,6 @@ BoundingBoxForCell(const float *X, const float *Y, const int *dims,
         bbox[2] = Y[idx[1]];
         bbox[3] = Y[idx[1]+1];
     }
-    // IMPLEMENT ME!
 }
 
 // ****************************************************************************
@@ -290,12 +308,55 @@ BoundingBoxForCell(const float *X, const float *Y, const int *dims,
 //
 // ****************************************************************************
 
+// TODO
 int
 CountNumberOfStraddlingCells(const float *X, const float *Y, const int *dims,
                              const float *F)
 {
-    return 0;
-    // IMPLEMENT ME!
+    int runningCount = 0;
+    int numIndices = dims[0] * dims[1];
+    printf("Dims[0] = %d", dims[0]);
+    for (int i = 0; i < numIndices; ++i)
+    {
+        double left = 0;
+        double right = 0;
+        double above = 0;
+        double below = 0;
+        // If adjacent value exists then set it
+        if (i%dims[0] != 0)                       // Left
+            left = F[i-1];
+        //if ((i%dims[0]) < dims[0])               // Right
+        if ((i%dims[0]) < (dims[0]-1))
+        {
+            if (i < dims[0]+2)
+                printf("%d: %d %f\n", i%dims[0] < dims[0], i, F[i+1]);
+            right = F[i+1];
+        }
+        if (i >= dims[0])                         // Below
+            below = F[i - dims[0] + (i%dims[0])];
+        if (i < numIndices - dims[0])             // Above
+            above = F[i+dims[0] + (i%dims[0])];
+
+        // Is adjacent value within criteria?
+        if (left < 0 && F[i] > 0 || left > 0 && F[i] < 0)
+                runningCount++;
+        else if (right < 0 && F[i] > 0 || right > 0 && F[i] < 0)
+                runningCount++;
+        else if (below < 0 && F[i] > 0 || below > 0 && F[i] < 0)
+                runningCount++;
+        else if (above < 0 && F[i] > 0 || above > 0 && F[i] < 0)
+                runningCount++;
+
+        //if ((i > dims[0] + 1) && (i <= dims[0] + 2))
+        if (i == 1)
+        {
+            printf("\n       %0.3f\n%0.3f  %0.3f   %0.3f\n      %0.3f\n", above, left, right, below);
+            printf("\n       %0.3f\n%0.3f  %0.3f   %0.3f\n      %0.3f\n", F[i+dims[0] + (i%dims[0])], F[i-1], F[i], F[i+1], F[i-dims[0] + (i%dims[0])]);
+            printf("\n   %d\n%d   %d   %d\n   %d\n", i+dims[0] + (i%dims[0]), i-1, i, i+1, i-dims[0] + (i%dims[0]));
+            printf("\n       %0.3f\n%0.3f  %0.3f   %0.3f\n      %0.3f\n", F[33], F[0], F[1], F[2], F[-29]);
+        }
+    }
+    return runningCount;
 }
 
 int main()
