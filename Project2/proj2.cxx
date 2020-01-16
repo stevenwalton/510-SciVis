@@ -308,7 +308,6 @@ BoundingBoxForCell(const float *X, const float *Y, const int *dims,
 //
 // ****************************************************************************
 
-// TODO
 int
 CountNumberOfStraddlingCells(const float *X, const float *Y, const int *dims,
                              const float *F)
