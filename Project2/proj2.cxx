@@ -212,7 +212,6 @@ int
 BinarySearch(const float pt, const int lower, const int upper,
              const float *arr)
 {
-    //printf("Searching between %d and %d (%f,%f)\n", lower, upper, arr[lower], arr[upper]);
     if (lower > upper)
     {
         printf("Error in binary search! %d > %d", lower, upper);
@@ -223,15 +222,12 @@ BinarySearch(const float pt, const int lower, const int upper,
     {
         if (pt < arr[index+1])
         {
-            //printf("SUCCESS! Index: %d:  %f < %f < %f\n", index, arr[index], pt, arr[index+1]);
             return index;
         }
-        //printf("%f > %f\n", pt, arr[index]);
         index = BinarySearch(pt, index+1, upper, arr);
     }
     else if (pt < arr[index])
     {
-        //printf("%f < %f\n", pt, arr[index]);
         index = BinarySearch(pt, lower, index-1, arr);
     }
     return index;
@@ -255,23 +251,19 @@ EvaluateFieldAtLocation(const float *pt, const int *dims,
         return 0;
 
     int idx[2] = {dims[0]/2, dims[1]/2};
-    //printf("Searching for %f\n",pt[0]);
     idx[0] = BinarySearch(pt[0], 0, dims[0]-1, X);
     idx[1] = BinarySearch(pt[1], 0, dims[1]-1, Y);
-    int index = GetCellIndex(idx, dims);
+    int index = (idx[1]*dims[0]) + idx[0];
     int upper_index = index + dims[0];
-    int foo[2];
-    GetLogicalCellIndex(foo, index, dims);
-    //printf("x (%f,%f), y (%f,%f): lower (%f,%f), upper (%f,%f)\n", X[idx[0]], X[idx[0]+1], Y[idx[1]], Y[idx[1]+1], F[index], F[index+1], F[upper_index], F[upper_index+1]);
-    printf("Lower values %f -> %f\n", F[index], F[index+1]);
-    exit(0);
+    // Bottom x-line interpolation
     float left2right = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
                                            F[index], F[index+1]);
+    // Top x-line interpolation
     float t_left2right = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
                                              F[upper_index], F[upper_index+1]);
+    // Vertical interpolation
     float r = LinearInterpolation(Y[idx[1]], Y[idx[1]+1], pt[1],
                                   left2right, t_left2right);
-    exit(0);
     return r;
 }
 
