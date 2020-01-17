@@ -208,32 +208,71 @@ void GetLogicalCellIndex(int *idx, int cellId, const int *dims)
 //
 // ****************************************************************************
 
-// TODO
+int
+BinarySearch(const float pt, const int lower, const int upper,
+             const float *arr)
+{
+    //printf("Searching between %d and %d (%f,%f)\n", lower, upper, arr[lower], arr[upper]);
+    if (lower > upper)
+    {
+        printf("Error in binary search! %d > %d", lower, upper);
+        exit(1);
+    }
+    int index = (lower + upper)/2;
+    if (pt > arr[index])
+    {
+        if (pt < arr[index+1])
+        {
+            //printf("SUCCESS! Index: %d:  %f < %f < %f\n", index, arr[index], pt, arr[index+1]);
+            return index;
+        }
+        //printf("%f > %f\n", pt, arr[index]);
+        index = BinarySearch(pt, index+1, upper, arr);
+    }
+    else if (pt < arr[index])
+    {
+        //printf("%f < %f\n", pt, arr[index]);
+        index = BinarySearch(pt, lower, index-1, arr);
+    }
+    return index;
+}
+
+float
+LinearInterpolation(const float a, const float b, const float x,
+                    const float F_a, const float F_b)
+{
+    float t = (x-a)/(b-a);
+    return F_a + t*(F_b - F_a);
+}
+
 float
 EvaluateFieldAtLocation(const float *pt, const int *dims, 
                         const float *X, const float *Y, const float *F)
 {
-    /*
-    //printf("Location (%f,%f), first number of field is %f\n", pt[0], pt[1], F[0]);
-    int idx[2] = {0,0};
-    if (pt[0] > X[dims[0]-1] || pt[1] > Y[dims[1]-1] || pt[0] < X[0] || pt[1] < Y[0])
-    {
-        //printf("Out of bounds!!!! (%d,%d) is not within (%d,%d)\n", pt[0], pt[1], X[dims[0]-1], Y[dims[1]-1]);
+    // Check if valid
+    if (pt[0] < X[0] || pt[0] > X[dims[0]-1] || 
+        pt[1] < Y[0] || pt[1] > Y[dims[1]-1])
         return 0;
 
-    }
-    for(int x_loop = 0; x_loop < dims[0]; ++x_loop)
-        if(pt[0] > X[x_loop]) idx[0] = x_loop;
-    for(int y_loop = 0; y_loop < dims[0]; ++y_loop)
-        if(pt[0] > Y[y_loop]) idx[1] = y_loop;
-    int index = GetPointIndex(idx, dims);
-    float bbox[4] = {0,0,0,0};
-    BoundingBoxForCell(X,Y,dims, index, bbox);
-    printf("Got index %d with field value %f\n", index, F[index]);
-    printf("Got bounding box (%f,%f,%f,%f)\n", bbox[0], bbox[1], bbox[2], bbox[3]);
-    return F[index]; // IMPLEMENT ME!!
-    */
-    return 0;
+    int idx[2] = {dims[0]/2, dims[1]/2};
+    //printf("Searching for %f\n",pt[0]);
+    idx[0] = BinarySearch(pt[0], 0, dims[0]-1, X);
+    idx[1] = BinarySearch(pt[1], 0, dims[1]-1, Y);
+    int index = GetCellIndex(idx, dims);
+    int upper_index = index + dims[0];
+    int foo[2];
+    GetLogicalCellIndex(foo, index, dims);
+    //printf("x (%f,%f), y (%f,%f): lower (%f,%f), upper (%f,%f)\n", X[idx[0]], X[idx[0]+1], Y[idx[1]], Y[idx[1]+1], F[index], F[index+1], F[upper_index], F[upper_index+1]);
+    printf("Lower values %f -> %f\n", F[index], F[index+1]);
+    exit(0);
+    float left2right = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                           F[index], F[index+1]);
+    float t_left2right = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                             F[upper_index], F[upper_index+1]);
+    float r = LinearInterpolation(Y[idx[1]], Y[idx[1]+1], pt[1],
+                                  left2right, t_left2right);
+    exit(0);
+    return r;
 }
 
 // ****************************************************************************
@@ -280,8 +319,8 @@ BoundingBoxForCell(const float *X, const float *Y, const int *dims,
     else
     {
         int idx[2] = {0,0};
-        int pointIndex = GetPointIndex(idx, dims);
-        int cellIndex = GetCellIndex(idx, dims);
+        //int pointIndex = GetPointIndex(idx, dims);
+        //int cellIndex = GetCellIndex(idx, dims);
         GetLogicalCellIndex(idx, cellId, dims);
         bbox[0] = X[idx[0]];
         bbox[1] = X[idx[0]+1];
