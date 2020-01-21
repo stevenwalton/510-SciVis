@@ -306,6 +306,23 @@ ApplyBlueHotColorMap(float F, unsigned char *RGB)
 void
 ApplyDifferenceColorMap(float F, unsigned char *RGB)
 {
+    if (F < 0 || F > 1)
+    {
+        printf("ERROR: F = %f\n",F);
+        exit(1);
+    }
+    if (F < 0.5)
+    {
+        RGB[0] = LinearInterpolation(0,0.5,F,0,255); 
+        RGB[1] = LinearInterpolation(0,0.5,F,0,255); 
+        RGB[2] = LinearInterpolation(0,0.5,F,128,255); 
+    }
+    else
+    {
+        RGB[0] = LinearInterpolation(1,0.5,F,128,255); 
+        RGB[1] = LinearInterpolation(1,0.5,F,0,255); 
+        RGB[2] = LinearInterpolation(1,0.5,F,0,255); 
+    }
 }
 
 // ****************************************************************************
