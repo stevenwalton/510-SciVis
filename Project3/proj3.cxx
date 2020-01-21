@@ -170,12 +170,62 @@ void GetLogicalCellIndex(int *idx, int cellId, const int *dims)
 //   Returns: the interpolated field value. 0 if the location is out of bounds.
 //
 // ****************************************************************************
+int
+BinarySearch(const float pt, const int lower, const int upper,
+             const float *arr)
+{
+    if (lower > upper)
+    {
+        printf("Error in binary search! %d > %d", lower, upper);
+        exit(1);
+    }
+    int index = (lower + upper)/2;
+    if (pt > arr[index])
+    {
+        if (pt < arr[index+1])
+        {
+            return index;
+        }
+        index = BinarySearch(pt, index+1, upper, arr);
+    }
+    else if (pt < arr[index])
+    {
+        index = BinarySearch(pt, lower, index-1, arr);
+    }
+    return index;
+}
+
+float
+LinearInterpolation(const float a, const float b, const float x,
+                    const float F_a, const float F_b)
+{
+    float t = (x-a)/(b-a);
+    return F_a + t*(F_b - F_a);
+}
 
 float EvaluateFieldAtLocation(const float *pt, const int *dims, const float *X, 
                               const float *Y, const float *F)
 {
-    cerr << "You need to copy over your EvaluateFieldAtLocation from proj2" << endl;
-    return 0;
+    // Check if valid
+    if (pt[0] < X[0] || pt[0] > X[dims[0]-1] || 
+        pt[1] < Y[0] || pt[1] > Y[dims[1]-1])
+        return 0;
+
+    int idx[2] = {dims[0]/2, dims[1]/2};
+    idx[0] = BinarySearch(pt[0], 0, dims[0]-1, X);
+    idx[1] = BinarySearch(pt[1], 0, dims[1]-1, Y);
+    int index = (idx[1]*dims[0]) + idx[0];
+    int upper_index = index + dims[0];
+    // Bottom x-line interpolation
+    float left2right = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                           F[index], F[index+1]);
+    // Top x-line interpolation
+    float t_left2right = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                             F[upper_index], F[upper_index+1]);
+    // Vertical interpolation
+    float r = LinearInterpolation(Y[idx[1]], Y[idx[1]+1], pt[1],
+                                  left2right, t_left2right);
+    return r;
 }
 
 
@@ -286,9 +336,17 @@ int main()
     float *X = (float *) rgrid->GetXCoordinates()->GetVoidPointer(0);
     float *Y = (float *) rgrid->GetYCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
+
+    float xMin = X[0];
+    float xMax = X[dims[0]-1];
+    float yMin = Y[0];
+    float yMax = Y[dims[1]-1];
     
     int nx = 500;
     int ny = 500;
+
+    float xShift = (xMax-xMin)/nx;
+    float yShift = (yMax-yMin)/ny;
 
     vtkImageData *images[3];
     unsigned char *buffer[3];
@@ -307,10 +365,12 @@ int main()
         {
             // ITERATE OVER PIXELS
             float pt[2];
-            //pt[0] = ...;
-            //pt[1] = ...;
-            //float f = ...;
-            float normalizedF = 0; //...; see step 5 re 1.2->5.02
+            //printf("(%f - %f)*%f)\n",X[i],xMin,xShift);
+            pt[0] = i*xShift + xMin;
+            pt[1] = j*yShift + yMin;
+
+            float f = EvaluateFieldAtLocation(pt, dims, X, Y, F);
+            float normalizedF = 1; //...; see step 5 re 1.2->5.02
             
             // I TAKE OVER HERE
             int offset = 3*(j*nx+i);
