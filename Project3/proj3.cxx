@@ -276,8 +276,15 @@ NewImage(int width, int height)
 void
 ApplyBlueHotColorMap(float F, unsigned char *RGB)
 {
+    if (F < 0 || F > 1)
+    {
+        printf("ERROR: F = %f\n",F);
+        exit(1);
+    }
+    RGB[0] = LinearInterpolation(0,1,F,0,255);
+    RGB[1] = LinearInterpolation(0,1,F,0,255);
+    RGB[2] = LinearInterpolation(0,1,F,128,255);
 }
-
 
 // ****************************************************************************
 //  Function: ApplyDifferenceColorMap
@@ -337,16 +344,17 @@ int main()
     float *Y = (float *) rgrid->GetYCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
 
-    float xMin = X[0];
-    float xMax = X[dims[0]-1];
-    float yMin = Y[0];
-    float yMax = Y[dims[1]-1];
+    float xMin = -9.0;//X[0];
+    float xMax = 9.0;//X[dims[0]-1];
+    float yMin = -9.0;//Y[0];
+    float yMax = 9.0;//Y[dims[1]-1];
     
     int nx = 500;
     int ny = 500;
 
-    float xShift = (xMax-xMin)/nx;
-    float yShift = (yMax-yMin)/ny;
+    float xShift = (xMax-xMin)/(nx-1);
+    float yShift = (yMax-yMin)/(ny-1);
+
 
     vtkImageData *images[3];
     unsigned char *buffer[3];
@@ -360,6 +368,15 @@ int main()
         for (j = 0 ; j < 3 ; j++)
             buffer[j][i] = 0;
 
+    float fMax = F[0];
+    float fMin = F[0];
+    for (int i = 0; i < dims[0]*dims[1]; ++i)
+    {
+        if (F[i] > fMax) fMax = F[i];
+        if (F[i] < fMin) fMin = F[i];
+    }
+
+
     for (i = 0 ; i < nx ; i++)
         for (j = 0 ; j < ny ; j++)
         {
@@ -370,7 +387,7 @@ int main()
             pt[1] = j*yShift + yMin;
 
             float f = EvaluateFieldAtLocation(pt, dims, X, Y, F);
-            float normalizedF = 1; //...; see step 5 re 1.2->5.02
+            float normalizedF = (f-fMin)/(fMax-fMin); //...; see step 5 re 1.2->5.02
             
             // I TAKE OVER HERE
             int offset = 3*(j*nx+i);
