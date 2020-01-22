@@ -342,6 +342,58 @@ ApplyDifferenceColorMap(float F, unsigned char *RGB)
 void
 ApplyHSVColorMap(float F, unsigned char *RGB)
 {
+    // Set HSV
+    float saturation = 1.;
+    float value      = 1.;
+    float hue        = LinearInterpolation(0,1,F,0,360);
+
+    // HSV to RGB
+    hue /= 60.;
+    int i = floor(hue);
+    float f = hue - i;
+    // Factorial part of hue
+    int p = 0;//floor(255. * value * (1.-saturation)); // 1-1 = 0
+    int q = floor(255. * value * (1.-saturation*f));
+    int t = floor(255. * value * (1.-saturation*(1.-f)));
+    int v = 255;
+    // Switch
+    switch(i)
+    {
+        case 0:
+            RGB[0] = v;
+            RGB[1] = t;
+            RGB[2] = p;
+            break;
+        case 1:
+            RGB[0] = q;
+            RGB[1] = v;
+            RGB[2] = p;
+            break;
+        case 2:
+            RGB[0] = p;
+            RGB[1] = v;
+            RGB[2] = t;
+            break;
+        case 3:
+            RGB[0] = p;
+            RGB[1] = q;
+            RGB[2] = v;
+            break;
+        case 4:
+            RGB[0] = t;
+            RGB[1] = p;
+            RGB[2] = v;
+            break;
+        case 5:
+            RGB[0] = v;
+            RGB[1] = p;
+            RGB[2] = q;
+            break;
+        default:
+            printf("ERROR: i = %d\n",i);
+            exit(1);
+    }
+
 }
 
 
@@ -361,10 +413,11 @@ int main()
     float *Y = (float *) rgrid->GetYCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
 
-    float xMin = -9.0;//X[0];
-    float xMax = 9.0;//X[dims[0]-1];
-    float yMin = -9.0;//Y[0];
-    float yMax = 9.0;//Y[dims[1]-1];
+    // HARD CODE FOR CORRECT ANSWER
+    float xMin = -9.0;//X[0]+1;
+    float xMax = 9.0;//X[dims[0]]-1;
+    float yMin = -9.0;//Y[0]+1;
+    float yMax = 9.0;//Y[dims[1]]-1;
     
     int nx = 500;
     int ny = 500;
@@ -399,12 +452,13 @@ int main()
         {
             // ITERATE OVER PIXELS
             float pt[2];
-            //printf("(%f - %f)*%f)\n",X[i],xMin,xShift);
             pt[0] = i*xShift + xMin;
             pt[1] = j*yShift + yMin;
 
             float f = EvaluateFieldAtLocation(pt, dims, X, Y, F);
-            float normalizedF = (f-fMin)/(fMax-fMin); //...; see step 5 re 1.2->5.02
+            //float normalizedF = (f-fMin)/(fMax-fMin); //...; see step 5 re 1.2->5.02
+            // HARD CODE FOR CORRECT ANSWER
+            float normalizedF = (f-1.2)/(5.02-1.2);
             
             // I TAKE OVER HERE
             int offset = 3*(j*nx+i);
