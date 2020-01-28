@@ -326,8 +326,20 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
 float
 CalculateArcLength(const float *output_locations, int nlocations)
 {
-    // IMPLEMENT ME!
-    return 0;
+    float length = 0;
+    float dx = 0;
+    float dy = 0;
+    bool print = false;
+    if (output_locations[0] > 8.623 && output_locations[0] < 8.624)
+        print = true;
+    for (int i = 1; i < nlocations; ++i)
+    {
+        dx = output_locations[i*2] - output_locations[i*2-2];
+        dy = output_locations[i*2+1] - output_locations[i*2-1];
+        // Get Magnitude
+        length += sqrt(dx*dx + dy*dy);
+    }
+    return length;
 }
 
 void
