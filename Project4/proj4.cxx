@@ -166,6 +166,39 @@ void GetLogicalCellIndex(int *idx, int cellId, const int *dims)
     idx[1] = cellId/(dims[0]-1);
 }
 
+int
+BinarySearch(const float pt, const int lower, const int upper,
+             const float *arr)
+{
+    if (lower > upper)
+    {
+        printf("Error in binary search! %d > %d", lower, upper);
+        exit(1);
+    }
+    int index = (lower + upper)/2;
+    if (pt > arr[index])
+    {
+        if (pt < arr[index+1])
+        {
+            return index;
+        }
+        index = BinarySearch(pt, index+1, upper, arr);
+    }
+    else if (pt < arr[index])
+    {
+        index = BinarySearch(pt, lower, index-1, arr);
+    }
+    return index;
+}
+
+float
+LinearInterpolation(const float a, const float b, const float x,
+                    const float F_a, const float F_b)
+{
+    float t = (x-a)/(b-a);
+    return F_a + t*(F_b - F_a);
+}
+
 
 // ****************************************************************************
 //  Function: EvaluateVectorFieldAtLocation
@@ -182,6 +215,7 @@ void GetLogicalCellIndex(int *idx, int cellId, const int *dims)
 //     F: a vector field defined on the mesh.  Its size is 2*dims[0]*dims[1].
 //        The first value in the field is the x-component for the first point.
 //        The second value in the field is the y-component for the first point.
+//        The third value in the field is the z-component, which is 0.
 //
 //     rv (output): the interpolated field value. (0,0) if the location is out of bounds.
 //
@@ -192,8 +226,36 @@ void EvaluateVectorFieldAtLocation(const float *pt, const int *dims, const float
 {
     // IMPLEMENT ME!
 
-    rv[0] = 0; // setting the x-component of the velocity
-    rv[1] = 0; // setting the y-component of the velocity
+    if (pt[0] < X[0] || pt[0] > X[dims[0]-1] || 
+        pt[1] < Y[0] || pt[1] > Y[dims[1]-1])
+    {
+        rv[0] = 0; // setting the x-component of the velocity
+        rv[1] = 0; // setting the y-component of the velocity
+    }
+    else
+    {
+        int idx[2];
+        idx[0] = BinarySearch(pt[0], 0, dims[0]-1, X);
+        idx[1] = BinarySearch(pt[1], 0, dims[1]-1, Y);
+        int index = 2*idx[1]*dims[0] + 2*idx[0];
+        int upper_index = 2*(idx[1]+1)*dims[0] + 2*idx[0];
+        // Bottom x-line interpolation
+        float l2rx = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                         F[index], F[index+2]);
+        float l2ry = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                         F[index+1], F[index+3]);
+        // Top x-line interpolation
+        float t_l2rx = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                           F[upper_index], F[upper_index+2]);
+        float t_l2ry = LinearInterpolation(X[idx[0]], X[idx[0]+1], pt[0],
+                                           F[upper_index+1], F[upper_index+3]);
+        // Y-line interpolation
+        rv[0] = LinearInterpolation(Y[idx[1]], Y[idx[1]+1], pt[1],
+                                    l2rx, t_l2rx);
+        rv[1] = LinearInterpolation(Y[idx[1]], Y[idx[1]+1], pt[1],
+                                          l2ry, t_l2ry);
+    }
+        
 }
 
 // ****************************************************************************
