@@ -289,16 +289,26 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
                     const float *Y, const float *F, 
                     float h, int nsteps, float *output_locations, float *speeds)
 {
-    // IMPLEMENT ME!
-
-    output_locations[0] = 0; // set the x component of the first output location
-    output_locations[1] = 0; // set the y component of the first output location
-    output_locations[2] = 0; // set the x component of the second output location
-    output_locations[3] = 0; // set the y component of the second output location
-    // ...
-    speeds[0] = 0; // set the speed at the first output location
-    speeds[1] = 0; // set the speed at the second output location
-    // ...
+    // Initialization
+    output_locations[0] = pt[0];
+    output_locations[1] = pt[1];
+    float npt[2] = {pt[0], pt[1]};
+    float speed[2] = {0,0};
+    EvaluateVectorFieldAtLocation(pt, dims, X, Y, F, speed);
+    speeds[0] = sqrt((speed[0]*speed[0]) + (speed[1]*speed[1]));
+    for (int i = 1; i <= nsteps; ++i)
+    {
+        // Get speed at starting position
+        EvaluateVectorFieldAtLocation(npt, dims, X, Y, F, speed);
+        // Update speeds array with magnitude of speed
+        speeds[i] = sqrt((speed[0]*speed[0]) + (speed[1]*speed[1]));
+        // Get new location
+        npt[0] = npt[0] + h*speed[0];
+        npt[1] = npt[1] + h*speed[1];
+        // Update output_locations array
+        output_locations[i*2]   = npt[0];
+        output_locations[i*2+1] = npt[1];
+    }
 }
 
 // ****************************************************************************
