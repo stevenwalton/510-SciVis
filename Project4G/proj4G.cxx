@@ -319,14 +319,17 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
 
     output_locations[0] = pt[0];
     output_locations[1] = pt[1];
-    float npt[2] = {pt[0], pt[1]};
-    float tpt[2] = {pt[0], pt[1]};
+    float npt[2] = {pt[0], pt[1]};  // Loop positions
+    float tpt[2] = {pt[0], pt[1]};  // rk positions
+
+    // Velocity (k's)
     float velocity[4][2] = {{0,0},{0,0},{0,0},{0,0}};
+
     // First step: i=0
     EvaluateVectorFieldAtLocation(pt, dims, X, Y, F, velocity[0]);
     float v[2] = {velocity[0][0], velocity[0][1]};
     speeds[0] = sqrt(v[0]*v[0] + v[1]*v[1]);
-    for (int i = 1; i <= nsteps; ++i)
+    for (int i = 1; i <= nsteps; ++i) // f_n( f_{n-1} )
     {
         // K0
         tpt[0] = npt[0];
@@ -347,7 +350,7 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
         tpt[1] = npt[1] + velocity[2][1];
         EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[3]);
 
-        // Update velocities
+        // Update velocity
         v[0] = (velocity[0][0] 
                 + 2.f*velocity[1][0] 
                 + 2.f*velocity[2][0] 
@@ -359,7 +362,7 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
                 + velocity[3][1])
                / 6.f;
 
-        // Update speed
+        // Update speed (magnitude of velocity)
         speeds[i] = sqrt(v[0]*v[0] + v[1]*v[1]);
         // Update starting points
         npt[0] = npt[0] + h*v[0];
@@ -545,9 +548,8 @@ int main()
     }
 
     //float h = 0.01;
-    float h = .1;
-    //const int nsteps = 5000;
-    const int nsteps = 400;
+    float h = 5.;
+    const int nsteps = 5000;
     float **euler_output_locations = new float*[2*(npts+1)];
     float **rk4_output_locations   = new float*[2*(npts+1)];
     float **euler_speeds = new float*[npts+1];
