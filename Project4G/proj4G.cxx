@@ -347,7 +347,7 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
         tpt[1] = npt[1] + velocity[2][1];
         EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[3]);
 
-         
+        // Update velocities
         v[0] = (velocity[0][0] 
                 + 2.f*velocity[1][0] 
                 + 2.f*velocity[2][0] 
@@ -359,9 +359,12 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
                 + velocity[3][1])
                / 6.f;
 
+        // Update speed
         speeds[i] = sqrt(v[0]*v[0] + v[1]*v[1]);
+        // Update starting points
         npt[0] = npt[0] + h*v[0];
         npt[1] = npt[1] + h*v[1];
+        // Update output locations
         output_locations[i*2] = npt[0];
         output_locations[i*2+1] = npt[1];
         
@@ -375,7 +378,6 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
         output_locations[i*2] = npt[0];
         output_locations[i*2+1] = npt[1];
         */
-
     }
 }
 
@@ -542,30 +544,24 @@ int main()
        cerr << "Velocity at (" << pt[i][0] <<", "<<pt[i][1] << ") is (" << vec[0] << ", " << vec[1] << ")" << endl;
     }
 
-    float h = 0.01;
-    //float h = .1;
-    const int nsteps = 5000;
-    //float **output_locations     = new float*[2*(npts+1)];
+    //float h = 0.01;
+    float h = .1;
+    //const int nsteps = 5000;
+    const int nsteps = 400;
     float **euler_output_locations = new float*[2*(npts+1)];
     float **rk4_output_locations   = new float*[2*(npts+1)];
-    //float **speeds     = new float*[npts+1];
     float **euler_speeds = new float*[npts+1];
     float **rk4_speeds   = new float*[npts+1];
     for (i = 0 ; i < npts ; i++)
     {
-       //output_locations[i]     = new float[(nsteps+1)*2];
        euler_output_locations[i] = new float[(nsteps+1)*2];
        rk4_output_locations[i]   = new float[(nsteps+1)*2];
-       //speeds[i]     = new float[nsteps];
        euler_speeds[i] = new float[nsteps];
        rk4_speeds[i]   = new float[nsteps];
-       //AdvectWithEulerStep(pt[i], dims, X, Y, F, h, nsteps, output_locations[i], speeds[i]);
        AdvectWithEulerStep(pt[i], dims, X, Y, F, h, nsteps, euler_output_locations[i], euler_speeds[i]);
        AdvectWithRK4Step(pt[i], dims, X, Y, F, h, nsteps, rk4_output_locations[i], rk4_speeds[i]);
-       //float length = CalculateArcLength(output_locations[i], nsteps+1);
        float euler_length = CalculateArcLength(euler_output_locations[i], nsteps+1);
-       float rk4_length = CalculateArcLength(euler_output_locations[i], nsteps+1);
-       //cerr << "Arc length for (" << pt[i][0] << ", " << pt[i][1] << ") is " << length << endl;
+       float rk4_length = CalculateArcLength(rk4_output_locations[i], nsteps+1);
        cerr << "Arc length for (" << pt[i][0] << ", " << pt[i][1] << ") is " 
             << "Euler: " << euler_length <<  " RK4: " << rk4_length << endl;
     }
@@ -582,13 +578,10 @@ int main()
     writer->Write();
  */
 
-    cout << "Window 1" << endl;
-    // Window 1
+    // Render 1 - Euler
     vtkSmartPointer<vtkDataSetMapper> win1Mapper =
       vtkSmartPointer<vtkDataSetMapper>::New();
-    //win1Mapper->SetInputData(pd);
-    //win1Mapper->SetInputData(euler_pd);
-    win1Mapper->SetInputData(rk4_pd);
+    win1Mapper->SetInputData(euler_pd);
     win1Mapper->SetScalarRange(0, 0.15);
   
     vtkSmartPointer<vtkActor> win1Actor =
@@ -598,22 +591,55 @@ int main()
     vtkSmartPointer<vtkRenderer> ren1 =
       vtkSmartPointer<vtkRenderer>::New();
   
-    vtkSmartPointer<vtkRenderWindow> renWin =
-      vtkSmartPointer<vtkRenderWindow>::New();
-    renWin->AddRenderer(ren1);
-  
-    vtkSmartPointer<vtkRenderWindowInteractor> iren =
-      vtkSmartPointer<vtkRenderWindowInteractor>::New();
-    iren->SetRenderWindow(renWin);
     ren1->AddActor(win1Actor);
     ren1->SetBackground(0.0, 0.0, 0.0);
-    renWin->SetSize(800, 800);
   
     ren1->GetActiveCamera()->SetFocalPoint(5,5,0);
     ren1->GetActiveCamera()->SetPosition(5,5,30);
     ren1->GetActiveCamera()->SetViewUp(0,1,0);
     ren1->GetActiveCamera()->SetClippingRange(20, 120);
     ren1->GetActiveCamera()->SetDistance(30);
+    // Placement in Render
+    ren1->SetViewport(0,0,0.5,1);
+
+    // Render 2 - RK4
+    vtkSmartPointer<vtkDataSetMapper> win2Mapper =
+      vtkSmartPointer<vtkDataSetMapper>::New();
+    win2Mapper->SetInputData(rk4_pd);
+    win2Mapper->SetScalarRange(0, 0.15);
+  
+    vtkSmartPointer<vtkActor> win2Actor =
+      vtkSmartPointer<vtkActor>::New();
+    win2Actor->SetMapper(win2Mapper);
+  
+    vtkSmartPointer<vtkRenderer> ren2 =
+      vtkSmartPointer<vtkRenderer>::New();
+
+    ren2->GetActiveCamera()->SetFocalPoint(5,5,0);
+    ren2->GetActiveCamera()->SetPosition(5,5,30);
+    ren2->GetActiveCamera()->SetViewUp(0,1,0);
+    ren2->GetActiveCamera()->SetClippingRange(20, 120);
+    ren2->GetActiveCamera()->SetDistance(30);
+    // 
+    ren2->AddActor(win2Actor);
+    ren2->SetBackground(0.0, 0.0, 0.0);
+    // Placement in Render
+    ren2->SetViewport(0.5, 0, 1.0, 1);
+
+  
+    // Renderer
+    vtkSmartPointer<vtkRenderWindow> renWin =
+      vtkSmartPointer<vtkRenderWindow>::New();
+
+    renWin->AddRenderer(ren1);
+    renWin->AddRenderer(ren2);
+    renWin->SetWindowName("Euler vs RK4");
+  
+    vtkSmartPointer<vtkRenderWindowInteractor> iren =
+      vtkSmartPointer<vtkRenderWindowInteractor>::New();
+    iren->SetRenderWindow(renWin);
+    renWin->SetSize(800, 800);
+  
 
     // This starts the event loop and invokes an initial render.
     //
