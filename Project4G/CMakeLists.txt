@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 PROJECT(proj4G)
 
+SET(CMAKE_BUILD_TYPE "Debug")
+
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 

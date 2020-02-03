@@ -337,17 +337,19 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
         EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[0]);
 
         // K1
-        tpt[0] = npt[0] + h/2.f;
-        tpt[1] = npt[1] + velocity[0][1]/2.f;
+        tpt[0] = npt[0] + h*velocity[0][0]/2.f;
+        tpt[1] = npt[1] + h*velocity[0][1]/2.f;
         EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[1]);
 
         // K2
-        tpt[1] = npt[1] + velocity[1][1]/2.f;
+        tpt[1] = npt[1] + h*velocity[1][0]/2.f;
+        tpt[1] = npt[1] + h*velocity[1][1]/2.f;
         EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[2]);
 
         // K3
-        tpt[0] = npt[0] + h;
-        tpt[1] = npt[1] + velocity[2][1];
+        //tpt[0] = npt[0] + h;
+        tpt[1] = npt[1] + h*velocity[2][1];
+        tpt[1] = npt[1] + h*velocity[2][1];
         EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[3]);
 
         // Update velocity
@@ -365,8 +367,8 @@ AdvectWithRK4Step(const float *pt, const int *dims, const float *X,
         // Update speed (magnitude of velocity)
         speeds[i] = sqrt(v[0]*v[0] + v[1]*v[1]);
         // Update starting points
-        npt[0] = npt[0] + h*v[0];
-        npt[1] = npt[1] + h*v[1];
+        npt[0] = npt[0] + v[0];
+        npt[1] = npt[1] + v[1];
         // Update output locations
         output_locations[i*2] = npt[0];
         output_locations[i*2+1] = npt[1];
@@ -547,8 +549,8 @@ int main()
        cerr << "Velocity at (" << pt[i][0] <<", "<<pt[i][1] << ") is (" << vec[0] << ", " << vec[1] << ")" << endl;
     }
 
-    //float h = 0.01;
-    float h = 5.;
+    float h = 0.01;
+    //float h = 10.;
     const int nsteps = 5000;
     float **euler_output_locations = new float*[2*(npts+1)];
     float **rk4_output_locations   = new float*[2*(npts+1)];
