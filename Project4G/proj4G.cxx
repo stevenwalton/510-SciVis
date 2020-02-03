@@ -311,6 +311,75 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
     }
 }
 
+void
+AdvectWithRK4Step(const float *pt, const int *dims, const float *X, 
+                  const float *Y, const float *F, 
+                  float h, int nsteps, float *output_locations, float *speeds)
+{
+
+    output_locations[0] = pt[0];
+    output_locations[1] = pt[1];
+    float npt[2] = {pt[0], pt[1]};
+    float tpt[2] = {pt[0], pt[1]};
+    float velocity[4][2] = {{0,0},{0,0},{0,0},{0,0}};
+    // First step: i=0
+    EvaluateVectorFieldAtLocation(pt, dims, X, Y, F, velocity[0]);
+    float v[2] = {velocity[0][0], velocity[0][1]};
+    speeds[0] = sqrt(v[0]*v[0] + v[1]*v[1]);
+    for (int i = 1; i <= nsteps; ++i)
+    {
+        // K0
+        tpt[0] = npt[0];
+        tpt[1] = npt[1];
+        EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[0]);
+
+        // K1
+        tpt[0] = npt[0] + h/2.f;
+        tpt[1] = npt[1] + velocity[0][1]/2.f;
+        EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[1]);
+
+        // K2
+        tpt[1] = npt[1] + velocity[1][1]/2.f;
+        EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[2]);
+
+        // K3
+        tpt[0] = npt[0] + h;
+        tpt[1] = npt[1] + velocity[2][1];
+        EvaluateVectorFieldAtLocation(tpt, dims, X, Y, F, velocity[3]);
+
+         
+        v[0] = (velocity[0][0] 
+                + 2.f*velocity[1][0] 
+                + 2.f*velocity[2][0] 
+                + velocity[3][0])
+               / 6.f;
+        v[1] = (velocity[0][1] 
+                + 2.f*velocity[1][1] 
+                + 2.f*velocity[2][1] 
+                + velocity[3][1])
+               / 6.f;
+
+        speeds[i] = sqrt(v[0]*v[0] + v[1]*v[1]);
+        npt[0] = npt[0] + h*v[0];
+        npt[1] = npt[1] + h*v[1];
+        output_locations[i*2] = npt[0];
+        output_locations[i*2+1] = npt[1];
+        
+        // Working Euler
+        /*
+        v[0] = velocity[0][0];
+        v[1] = velocity[0][1];
+        speeds[i] = sqrt(v[0]*v[0] + v[1]*v[1]);
+        npt[0] = npt[0] + h*v[0];
+        npt[1] = npt[1] + h*v[1];
+        output_locations[i*2] = npt[0];
+        output_locations[i*2+1] = npt[1];
+        */
+
+    }
+}
+
+
 // ****************************************************************************
 //  Function: CalculateArcLength
 //
@@ -474,19 +543,36 @@ int main()
     }
 
     float h = 0.01;
+    //float h = .1;
     const int nsteps = 5000;
-    float **output_locations = new float*[2*(npts+1)];
-    float **speeds = new float*[npts+1];
+    //float **output_locations     = new float*[2*(npts+1)];
+    float **euler_output_locations = new float*[2*(npts+1)];
+    float **rk4_output_locations   = new float*[2*(npts+1)];
+    //float **speeds     = new float*[npts+1];
+    float **euler_speeds = new float*[npts+1];
+    float **rk4_speeds   = new float*[npts+1];
     for (i = 0 ; i < npts ; i++)
     {
-       output_locations[i] = new float[(nsteps+1)*2];
-       speeds[i] = new float[nsteps];
-       AdvectWithEulerStep(pt[i], dims, X, Y, F, h, nsteps, output_locations[i], speeds[i]);
-       float length = CalculateArcLength(output_locations[i], nsteps+1);
-       cerr << "Arc length for (" << pt[i][0] << ", " << pt[i][1] << ") is " << length << endl;
+       //output_locations[i]     = new float[(nsteps+1)*2];
+       euler_output_locations[i] = new float[(nsteps+1)*2];
+       rk4_output_locations[i]   = new float[(nsteps+1)*2];
+       //speeds[i]     = new float[nsteps];
+       euler_speeds[i] = new float[nsteps];
+       rk4_speeds[i]   = new float[nsteps];
+       //AdvectWithEulerStep(pt[i], dims, X, Y, F, h, nsteps, output_locations[i], speeds[i]);
+       AdvectWithEulerStep(pt[i], dims, X, Y, F, h, nsteps, euler_output_locations[i], euler_speeds[i]);
+       AdvectWithRK4Step(pt[i], dims, X, Y, F, h, nsteps, rk4_output_locations[i], rk4_speeds[i]);
+       //float length = CalculateArcLength(output_locations[i], nsteps+1);
+       float euler_length = CalculateArcLength(euler_output_locations[i], nsteps+1);
+       float rk4_length = CalculateArcLength(euler_output_locations[i], nsteps+1);
+       //cerr << "Arc length for (" << pt[i][0] << ", " << pt[i][1] << ") is " << length << endl;
+       cerr << "Arc length for (" << pt[i][0] << ", " << pt[i][1] << ") is " 
+            << "Euler: " << euler_length <<  " RK4: " << rk4_length << endl;
     }
 
-    vtkPolyData *pd = CreateVTKPolyData(npts, nsteps, output_locations, speeds);
+    //vtkPolyData *pd = CreateVTKPolyData(npts, nsteps, output_locations, speeds);
+    vtkPolyData *euler_pd = CreateVTKPolyData(npts, nsteps, euler_output_locations, euler_speeds);
+    vtkPolyData *rk4_pd = CreateVTKPolyData(npts, nsteps, rk4_output_locations, rk4_speeds);
 
     //This can be useful for debugging
 /*
@@ -496,9 +582,13 @@ int main()
     writer->Write();
  */
 
+    cout << "Window 1" << endl;
+    // Window 1
     vtkSmartPointer<vtkDataSetMapper> win1Mapper =
       vtkSmartPointer<vtkDataSetMapper>::New();
-    win1Mapper->SetInputData(pd);
+    //win1Mapper->SetInputData(pd);
+    //win1Mapper->SetInputData(euler_pd);
+    win1Mapper->SetInputData(rk4_pd);
     win1Mapper->SetScalarRange(0, 0.15);
   
     vtkSmartPointer<vtkActor> win1Actor =
@@ -531,5 +621,7 @@ int main()
     iren->Start();
 
     delete [] F;
-    pd->Delete();
+    //pd->Delete();
+    euler_pd->Delete();
+    rk4_pd->Delete();
 }
