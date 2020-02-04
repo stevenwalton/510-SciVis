@@ -22,6 +22,11 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkSmartPointer.h>
 
+#include <vtkWindowToImageFilter.h>
+#include <vtkTextActor.h>
+
+#include <ctime>
+
 // ****************************************************************************
 //  Function: GetNumberOfPoints
 //
@@ -549,8 +554,15 @@ int main()
        cerr << "Velocity at (" << pt[i][0] <<", "<<pt[i][1] << ") is (" << vec[0] << ", " << vec[1] << ")" << endl;
     }
 
-    float h = 0.01;
-    //float h = 10.;
+    // Timers
+    std::clock_t timer;
+    double euler_clock = 0;
+    double rk4_clock = 0;
+
+    std::string saveFile = "h0p01.png";
+    //float h = 0.01;
+    float h = 10.;
+    //const int nsteps = 5000;
     const int nsteps = 5000;
     float **euler_output_locations = new float*[2*(npts+1)];
     float **rk4_output_locations   = new float*[2*(npts+1)];
@@ -562,8 +574,15 @@ int main()
        rk4_output_locations[i]   = new float[(nsteps+1)*2];
        euler_speeds[i] = new float[nsteps];
        rk4_speeds[i]   = new float[nsteps];
+
+       timer = std::clock();
        AdvectWithEulerStep(pt[i], dims, X, Y, F, h, nsteps, euler_output_locations[i], euler_speeds[i]);
+       euler_clock += (std::clock() - timer) / (double)CLOCKS_PER_SEC;
+
+       timer = std::clock();
        AdvectWithRK4Step(pt[i], dims, X, Y, F, h, nsteps, rk4_output_locations[i], rk4_speeds[i]);
+       rk4_clock += (std::clock() - timer) / (double)CLOCKS_PER_SEC;
+
        float euler_length = CalculateArcLength(euler_output_locations[i], nsteps+1);
        float rk4_length = CalculateArcLength(rk4_output_locations[i], nsteps+1);
        cerr << "Arc length for (" << pt[i][0] << ", " << pt[i][1] << ") is " 
@@ -606,6 +625,16 @@ int main()
     // Placement in Render
     ren1->SetViewport(0,0,0.5,1);
 
+    // Text Actor 1
+    vtkSmartPointer<vtkTextActor> anno1 =
+        vtkSmartPointer<vtkTextActor>::New();
+    std::string eulerText = "Euler: \nh=" + std::to_string(h) + "\nnsteps=" + 
+        std::to_string(nsteps) + "\ntime=" + std::to_string(euler_clock);
+    anno1->SetInput(eulerText.c_str());
+    anno1->SetTextScaleMode(20);
+    ren1->AddActor(anno1);
+
+
     // Render 2 - RK4
     vtkSmartPointer<vtkDataSetMapper> win2Mapper =
       vtkSmartPointer<vtkDataSetMapper>::New();
@@ -629,6 +658,15 @@ int main()
     ren2->SetBackground(0.0, 0.0, 0.0);
     // Placement in Render
     ren2->SetViewport(0.5, 0, 1.0, 1);
+    //
+    // Text Actor 2
+    vtkSmartPointer<vtkTextActor> anno2 =
+        vtkSmartPointer<vtkTextActor>::New();
+    std::string rkText= "RK4: \nh=" + std::to_string(h) + "\nnsteps=" + 
+        std::to_string(nsteps) + "\ntime=" + std::to_string(rk4_clock);
+    anno2->SetInput(rkText.c_str());
+    anno2->SetTextScaleMode(20);
+    ren2->AddActor(anno2);
 
   
     // Renderer
@@ -643,10 +681,21 @@ int main()
       vtkSmartPointer<vtkRenderWindowInteractor>::New();
     iren->SetRenderWindow(renWin);
     renWin->SetSize(800, 800);
-  
+
+    // Save image
+    vtkSmartPointer<vtkWindowToImageFilter> win2img = 
+        vtkSmartPointer<vtkWindowToImageFilter>::New();
+    win2img->SetInput(renWin);
+
+    vtkSmartPointer<vtkImageData> img =
+        win2img->GetOutput();
+    vtkSmartPointer<vtkPNGWriter> pngWriter = 
+        vtkSmartPointer<vtkPNGWriter>::New();
+    pngWriter->SetInputData(img);
+    pngWriter->SetFileName(saveFile.c_str());
+    pngWriter->Write();
 
     // This starts the event loop and invokes an initial render.
-    //
     iren->Initialize();
     iren->Start();
 

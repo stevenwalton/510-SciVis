@@ -10,3 +10,5 @@ CMakeFiles
 CMakeCache.txt
 *.cmake
 Makefile
+*.aux
+*.log
