@@ -52,6 +52,9 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkSmartPointer.h>
 
+#include <bitset>
+
+    
 
 // ****************************************************************************
 //  Function: GetNumberOfPoints
@@ -197,7 +200,6 @@ void GetLogicalCellIndex(int *idx, int cellId, const int *dims)
     idx[1] = cellId/(dims[0]-1);
 }
 
-
 class SegmentList
 {
    public:
@@ -258,6 +260,131 @@ SegmentList::MakePolyData(void)
     return pd;
 }
 
+// Steven Functions
+// Cases
+enum Cases 
+{
+    low,                // 0000
+    high_top_left,      // 0001
+    high_top_right,     // 0010
+    low_bottom,         // 0011
+    high_bottom_right,  // 0100
+    high_hyperbolic,    // 0101
+    low_left,           // 0110
+    low_bottom_left,    // 0111
+    high_bottom_left,   // 1000
+    high_left,          // 1001
+    hyperbolic_low,     // 1010
+    low_bottom_right,   // 1011
+    high_low,           // 1100
+    low_top_right,      // 1101
+    low_top_left,       // 1110
+    high                // 1111
+};
+
+const int LookupTable[16][4] = 
+{
+    {0,0,0,0}, // 0
+    {0,0,0,1},
+    {1,0,0,0},
+    {1,0,0,1},
+    {0,0,1,0},
+    {0,0,1,1}, // 5
+    {1,0,1,0},
+    {1,0,1,1},
+    {0,1,0,0},
+    {0,1,0,1},
+    {1,1,0,0}, // 10
+    {1,1,0,1},
+    {0,1,1,0},
+    {0,1,1,1},
+    {1,1,1,0},
+    {1,1,1,1}  // 15
+};
+
+int
+BinarySearch(const float pt, const int lower, const int upper,
+             const float *arr)
+{
+    if (lower > upper)
+    {
+        printf("Error in binary search! %d > %d", lower, upper);
+        exit(1);
+    }
+    int index = (lower + upper)/2;
+    if (pt > arr[index])
+    {
+        if (pt < arr[index+1])
+        {
+            return index;
+        }
+        index = BinarySearch(pt, index+1, upper, arr);
+    }
+    else if (pt < arr[index])
+    {
+        index = BinarySearch(pt, lower, index-1, arr);
+    }
+    return index;
+}
+
+float
+LinearInterpolation(const float a, const float b, const float x,
+                    const float F_a, const float F_b)
+{
+    float t = (x-a)/(b-a);
+    return F_a + t*(F_b - F_a);
+}
+
+void
+GetPointIndices(const int *index, const int *dims, int *vertex)
+{
+    vertex[0] = GetPointIndex(index, dims);
+    int newIndex[2] = {index[0]+1, index[1]};
+    vertex[1] = GetPointIndex(newIndex, dims);
+    newIndex[1] = newIndex[1] + 1;
+    vertex[2] = GetPointIndex(newIndex, dims);
+    newIndex[0] = index[0];
+    vertex[3] = GetPointIndex(newIndex, dims);
+}
+
+void
+DetermineCase(const float *F, const float isovalue, 
+              const int *vertex, int &id)
+{
+    std::bitset<4> _case;
+    for (size_t i = 0; i < _case.size(); ++i)
+        _case[i] = F[vertex[i]] > isovalue ? 1 : 0;
+    id = (int)_case.to_ulong();
+}
+
+void
+DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
+             const int *dims, const float *X, const float *Y, 
+             const float *F, const int id, const float isoValue)
+{
+}
+
+void
+GenIsoLines(const SegmentList &sl, const int *dims, 
+            const float *X, const float *Y, const float *F,
+            float isoValue)
+{
+    int log_index[2] = {0,0};
+    int vertex[4] = {0,0,0,0};
+    int id;
+    for (int x_ind = 0; x_ind < dims[0]; ++x_ind)
+    {
+        log_index[0] = x_ind;
+        for (int y_ind = 0; y_ind < dims[1]; ++y_ind)
+        {
+            log_index[1] = y_ind;
+            GetPointIndices(log_index, dims, vertex);
+            DetermineCase(F, isoValue, vertex, id);
+            //DrawSegments();
+        }
+    }
+}
+
 int main()
 {
     int  i, j;
@@ -283,9 +410,11 @@ int main()
     sl.AddSegment(+10, -10, +10, +10);
 
 // YOUR CODE TO GENERATE ISOLINES SHOULD GO HERE!
+    float isoValue = 3.2; // According to the instructions.
+    GenIsoLines(sl, dims, X, Y, F, isoValue);
 
     vtkPolyData *pd = sl.MakePolyData();
-
+    
     //This can be useful for debugging
 /*
     vtkDataSetWriter *writer = vtkDataSetWriter::New();
