@@ -348,13 +348,30 @@ GetPointIndices(const int *index, const int *dims, int *vertex)
 }
 
 void
-DetermineCase(const float *F, const float isovalue, 
+DetermineCase(const float *F, const float isoValue, 
               const int *vertex, int &id)
 {
     std::bitset<4> _case;
     for (size_t i = 0; i < _case.size(); ++i)
-        _case[i] = F[vertex[i]] > isovalue ? 1 : 0;
+        _case[i] = F[vertex[i]] > isoValue ? 1 : 0;
     id = (int)_case.to_ulong();
+}
+
+float
+InterpolateEdge(const float isoValue, const float F_a, const float F_b, 
+                const float a, const float b)
+{   
+    /*
+    printf("Isovalue in interp edge %f\n", isoValue);
+    printf("((%f - %f)/(%f - %f) * (%f - %f)) + %f\n", 
+            isoValue, F_a, 
+            F_b, F_a, 
+            b, a, 
+            a);
+    printf("ans = %f\n", ((isoValue-F_a)/(F_b-F_a)*(b-a))+a);
+    */
+    //exit(1);
+    return ( (isoValue - F_a)/(F_b - F_a) * (b - a)) + a;
 }
 
 void
@@ -362,10 +379,94 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
              const int *dims, const float *X, const float *Y, 
              const float *F, const int id, const float isoValue)
 {
+    //printf("Isovalue in DrawSegments %f\n", isoValue);
+    int vert_indices[4][2] = {{x_ind+1, y_ind},
+                              {x_ind+1, y_ind+1},
+                              {x_ind, y_ind+1},
+                              {x_ind, y_ind}};
+    float vertices[4] = {F[GetPointIndex(vert_indices[0], dims)],
+                         F[GetPointIndex(vert_indices[1], dims)],
+                         F[GetPointIndex(vert_indices[2], dims)],
+                         F[GetPointIndex(vert_indices[3], dims)]};
+    float endpoints[2][2] = {{0,0}, {0,0}};
+    /*
+    printf("%2.2f - %2.2f\n%2.2f - %2.2f\n", vertices[2], vertices[1],
+                                             vertices[3], vertices[0]);
+    printf("----------------------------\n");
+    */
+    switch(id)
+    {
+        case 0:
+        case 15:
+            // Don't draw any lines
+            break;
+        case 1:
+        case 14:
+            //printf("Got case %d\n", id);
+            endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind+1]);
+            endpoints[0][1] = Y[y_ind];
+
+            endpoints[1][0] = X[x_ind];
+            endpoints[1][1] = InterpolateEdge(isoValue, vertices[3], vertices[2], Y[y_ind], Y[y_ind+1]);
+            //printf("have points (%2.2f,%2.2f) -> (%2.2f,%2.2f)\n",
+            //        endpoints[0][0], endpoints[0][1],
+            //        endpoints[1][0], endpoints[1][1]);
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
+            break;
+        case 2:
+        case 13:
+            endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind+1]);
+            endpoints[0][1] = Y[y_ind];
+
+            endpoints[1][0] = X[x_ind+1];
+            endpoints[1][1] = InterpolateEdge(isoValue, vertices[1], vertices[0], Y[y_ind+1], Y[y_ind]);
+            break;
+        case 3:
+        case 12:
+            endpoints[0][0] = X[x_ind];
+            endpoints[0][1] = InterpolateEdge(isoValue, vertices[2], vertices[3], Y[y_ind+1], Y[y_ind]);
+
+            endpoints[1][0] = X[x_ind+1];
+            endpoints[1][1] = InterpolateEdge(isoValue, vertices[1], vertices[0], Y[y_ind+1], Y[y_ind]);
+            break;
+        case 4:
+        case 11:
+            endpoints[0][0] = X[x_ind];
+            endpoints[0][1] = InterpolateEdge(isoValue, vertices[3], vertices[2], Y[y_ind], Y[y_ind+1]);
+                              
+            endpoints[1][0] = InterpolateEdge(isoValue, vertices[1], vertices[2], X[x_ind+1], X[x_ind]);
+            endpoints[1][1] = Y[y_ind+1];
+        case 5:
+        case 10:
+            endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind+1]);
+            endpoints[0][1] = Y[y_ind];
+
+            endpoints[1][0] = InterpolateEdge(isoValue, vertices[1], vertices[2], X[x_ind+1], X[x_ind]);
+            endpoints[1][1] = Y[y_ind+1];
+            break;
+        case 6:
+            printf("Got case 6\n");
+            endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind]);
+            endpoints[0][1] = Y[y_ind];
+            endpoints[1][0] = X[x_ind+1];
+            endpoints[1][1] = InterpolateEdge(isoValue, vertices[1], vertices[0], Y[y_ind+1], Y[y_ind]);
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
+            // Part 2
+            endpoints[0][0] = X[x_ind];
+            endpoints[0][1] = InterpolateEdge(isoValue, vertices[3], vertices[2], Y[y_ind], Y[y_ind+1]);
+            endpoints[1][0] = InterpolateEdge(isoValue, vertices[2], vertices[1], X[x_ind], X[x_ind+1]);
+            endpoints[1][1] = Y[y_ind+1];
+            break;
+        default:
+            break;
+            //fprintf("An error occurred. Got ID: %d", id);
+            //exit(1);
+        sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
+    }
 }
 
 void
-GenIsoLines(const SegmentList &sl, const int *dims, 
+GenIsoLines(SegmentList &sl, const int *dims, 
             const float *X, const float *Y, const float *F,
             float isoValue)
 {
@@ -380,7 +481,8 @@ GenIsoLines(const SegmentList &sl, const int *dims,
             log_index[1] = y_ind;
             GetPointIndices(log_index, dims, vertex);
             DetermineCase(F, isoValue, vertex, id);
-            //DrawSegments();
+            //printf("Isovalue in GetIsoLines %f\n", isoValue);
+            DrawSegments(sl, x_ind, y_ind, dims, X, Y, F, id, isoValue);
         }
     }
 }
