@@ -52,9 +52,7 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkSmartPointer.h>
 
-#include <bitset>
-
-    
+#include <bitset> // For binary representation
 
 // ****************************************************************************
 //  Function: GetNumberOfPoints
@@ -261,89 +259,25 @@ SegmentList::MakePolyData(void)
 }
 
 // Steven Functions
-// Cases
-enum Cases 
-{
-    low,                // 0000
-    high_top_left,      // 0001
-    high_top_right,     // 0010
-    low_bottom,         // 0011
-    high_bottom_right,  // 0100
-    high_hyperbolic,    // 0101
-    low_left,           // 0110
-    low_bottom_left,    // 0111
-    high_bottom_left,   // 1000
-    high_left,          // 1001
-    hyperbolic_low,     // 1010
-    low_bottom_right,   // 1011
-    high_low,           // 1100
-    low_top_right,      // 1101
-    low_top_left,       // 1110
-    high                // 1111
-};
-
-const int LookupTable[16][4] = 
-{
-    {0,0,0,0}, // 0
-    {0,0,0,1},
-    {1,0,0,0},
-    {1,0,0,1},
-    {0,0,1,0},
-    {0,0,1,1}, // 5
-    {1,0,1,0},
-    {1,0,1,1},
-    {0,1,0,0},
-    {0,1,0,1},
-    {1,1,0,0}, // 10
-    {1,1,0,1},
-    {0,1,1,0},
-    {0,1,1,1},
-    {1,1,1,0},
-    {1,1,1,1}  // 15
-};
-
-int
-BinarySearch(const float pt, const int lower, const int upper,
-             const float *arr)
-{
-    if (lower > upper)
-    {
-        printf("Error in binary search! %d > %d", lower, upper);
-        exit(1);
-    }
-    int index = (lower + upper)/2;
-    if (pt > arr[index])
-    {
-        if (pt < arr[index+1])
-        {
-            return index;
-        }
-        index = BinarySearch(pt, index+1, upper, arr);
-    }
-    else if (pt < arr[index])
-    {
-        index = BinarySearch(pt, lower, index-1, arr);
-    }
-    return index;
-}
-
-float
-LinearInterpolation(const float a, const float b, const float x,
-                    const float F_a, const float F_b)
-{
-    float t = (x-a)/(b-a);
-    return F_a + t*(F_b - F_a);
-}
 
 void
 GetPointIndices(const int *index, const int *dims, int *vertex)
 {
-    vertex[0] = GetPointIndex(index, dims);
-    int newIndex[2] = {index[0]+1, index[1]};
+    // 2 -- 3
+    // |    |
+    // 0 -- 1
+    // Bottom Left
+    int newIndex[2] = {index[0], index[1]};
+    vertex[0] = GetPointIndex(newIndex, dims);
+    // Bottom Right
+    newIndex[0] = index[0]+1;
     vertex[1] = GetPointIndex(newIndex, dims);
-    newIndex[1] = newIndex[1] + 1;
-    vertex[2] = GetPointIndex(newIndex, dims);
+    // Upper Left
     newIndex[0] = index[0];
+    newIndex[1] = index[1]+1;
+    vertex[2] = GetPointIndex(newIndex, dims);
+    // Upper Right
+    newIndex[0] = index[0]+1;
     vertex[3] = GetPointIndex(newIndex, dims);
 }
 
@@ -351,6 +285,7 @@ void
 DetermineCase(const float *F, const float isoValue, 
               const int *vertex, int &id)
 {
+    // Use bitset to act in binary then convert back to an unsigned integer
     std::bitset<4> _case;
     for (size_t i = 0; i < _case.size(); ++i)
         _case[i] = F[vertex[i]] > isoValue ? 1 : 0;
@@ -361,16 +296,6 @@ float
 InterpolateEdge(const float isoValue, const float F_a, const float F_b, 
                 const float a, const float b)
 {   
-    /*
-    printf("Isovalue in interp edge %f\n", isoValue);
-    printf("((%f - %f)/(%f - %f) * (%f - %f)) + %f\n", 
-            isoValue, F_a, 
-            F_b, F_a, 
-            b, a, 
-            a);
-    printf("ans = %f\n", ((isoValue-F_a)/(F_b-F_a)*(b-a))+a);
-    */
-    //exit(1);
     return ( (isoValue - F_a)/(F_b - F_a) * (b - a)) + a;
 }
 
@@ -379,7 +304,14 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
              const int *dims, const float *X, const float *Y, 
              const float *F, const int id, const float isoValue)
 {
-    //printf("Isovalue in DrawSegments %f\n", isoValue);
+    /*
+     * This is different than before
+     * closer to Hank's "I've never seen and index start in the 
+     * origin ;)
+     * 2---1
+     * |   |
+     * 3---0
+     */
     int vert_indices[4][2] = {{x_ind+1, y_ind},
                               {x_ind+1, y_ind+1},
                               {x_ind, y_ind+1},
@@ -389,11 +321,6 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
                          F[GetPointIndex(vert_indices[2], dims)],
                          F[GetPointIndex(vert_indices[3], dims)]};
     float endpoints[2][2] = {{0,0}, {0,0}};
-    /*
-    printf("%2.2f - %2.2f\n%2.2f - %2.2f\n", vertices[2], vertices[1],
-                                             vertices[3], vertices[0]);
-    printf("----------------------------\n");
-    */
     switch(id)
     {
         case 0:
@@ -402,15 +329,11 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
             break;
         case 1:
         case 14:
-            //printf("Got case %d\n", id);
             endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind+1]);
             endpoints[0][1] = Y[y_ind];
 
             endpoints[1][0] = X[x_ind];
             endpoints[1][1] = InterpolateEdge(isoValue, vertices[3], vertices[2], Y[y_ind], Y[y_ind+1]);
-            //printf("have points (%2.2f,%2.2f) -> (%2.2f,%2.2f)\n",
-            //        endpoints[0][0], endpoints[0][1],
-            //        endpoints[1][0], endpoints[1][1]);
             sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
             break;
         case 2:
@@ -420,6 +343,7 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
 
             endpoints[1][0] = X[x_ind+1];
             endpoints[1][1] = InterpolateEdge(isoValue, vertices[1], vertices[0], Y[y_ind+1], Y[y_ind]);
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
             break;
         case 3:
         case 12:
@@ -428,6 +352,7 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
 
             endpoints[1][0] = X[x_ind+1];
             endpoints[1][1] = InterpolateEdge(isoValue, vertices[1], vertices[0], Y[y_ind+1], Y[y_ind]);
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
             break;
         case 4:
         case 11:
@@ -436,6 +361,8 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
                               
             endpoints[1][0] = InterpolateEdge(isoValue, vertices[1], vertices[2], X[x_ind+1], X[x_ind]);
             endpoints[1][1] = Y[y_ind+1];
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
+            break;
         case 5:
         case 10:
             endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind+1]);
@@ -443,25 +370,47 @@ DrawSegments(SegmentList &sl, const int x_ind, const int y_ind,
 
             endpoints[1][0] = InterpolateEdge(isoValue, vertices[1], vertices[2], X[x_ind+1], X[x_ind]);
             endpoints[1][1] = Y[y_ind+1];
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
             break;
         case 6:
-            printf("Got case 6\n");
-            endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind]);
+            endpoints[0][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind+1]);
             endpoints[0][1] = Y[y_ind];
             endpoints[1][0] = X[x_ind+1];
-            endpoints[1][1] = InterpolateEdge(isoValue, vertices[1], vertices[0], Y[y_ind+1], Y[y_ind]);
+            endpoints[1][1] = InterpolateEdge(isoValue, vertices[0], vertices[1], Y[y_ind], Y[y_ind+1]);
             sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
             // Part 2
             endpoints[0][0] = X[x_ind];
             endpoints[0][1] = InterpolateEdge(isoValue, vertices[3], vertices[2], Y[y_ind], Y[y_ind+1]);
             endpoints[1][0] = InterpolateEdge(isoValue, vertices[2], vertices[1], X[x_ind], X[x_ind+1]);
             endpoints[1][1] = Y[y_ind+1];
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
+            break;
+        case 7:
+        case 8:
+            endpoints[0][0] = InterpolateEdge(isoValue, vertices[1], vertices[2], X[x_ind+1], X[x_ind]);
+            endpoints[0][1] = Y[y_ind+1];
+            endpoints[1][0] = X[x_ind+1];
+            endpoints[1][1] = InterpolateEdge(isoValue, vertices[0], vertices[1], Y[y_ind], Y[y_ind+1]);
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
+            break;
+        case 9:
+            // Other hyperbola
+            endpoints[0][0] = X[x_ind];
+            endpoints[0][1] = InterpolateEdge(isoValue, vertices[3], vertices[2], Y[y_ind], Y[y_ind+1]);
+            endpoints[1][0] = InterpolateEdge(isoValue, vertices[3], vertices[0], X[x_ind], X[x_ind+1]);
+            endpoints[1][1] = Y[y_ind];
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
+            // Part 2
+            endpoints[0][0] = InterpolateEdge(isoValue, vertices[2], vertices[1], X[x_ind], X[x_ind+1]);
+            endpoints[0][1] = Y[y_ind+1];
+            endpoints[1][0] = X[x_ind+1];
+            endpoints[1][1] = InterpolateEdge(isoValue, vertices[0], vertices[1], Y[y_ind], Y[y_ind+1]);
+            sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
             break;
         default:
+            fprintf(stderr, "An error occurred. Got ID: %d", id);
+            exit(1);
             break;
-            //fprintf("An error occurred. Got ID: %d", id);
-            //exit(1);
-        sl.AddSegment(endpoints[0][0], endpoints[0][1], endpoints[1][0], endpoints[1][1]);
     }
 }
 
@@ -473,15 +422,14 @@ GenIsoLines(SegmentList &sl, const int *dims,
     int log_index[2] = {0,0};
     int vertex[4] = {0,0,0,0};
     int id;
-    for (int x_ind = 0; x_ind < dims[0]; ++x_ind)
+    for (int x_ind = 0; x_ind < dims[0]-1; ++x_ind)
     {
         log_index[0] = x_ind;
-        for (int y_ind = 0; y_ind < dims[1]; ++y_ind)
+        for (int y_ind = 0; y_ind < dims[1]-1; ++y_ind)
         {
             log_index[1] = y_ind;
             GetPointIndices(log_index, dims, vertex);
             DetermineCase(F, isoValue, vertex, id);
-            //printf("Isovalue in GetIsoLines %f\n", isoValue);
             DrawSegments(sl, x_ind, y_ind, dims, X, Y, F, id, isoValue);
         }
     }
