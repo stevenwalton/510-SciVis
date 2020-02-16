@@ -286,9 +286,62 @@ class Tetrahedron
     };
 };
 
-void IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
-{
+float
+InterpolateEdge(const float isoValue, const float F_a, const float F_b, 
+                const float a, const float b)
+{   
+    return ( (isoValue - F_a)/(F_b - F_a) * (b - a)) + a;
 }
+
+// TODO
+void 
+IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
+{
+    int sum = 0;
+    std::bitset<4> _case;
+    for (size_t i = 0; i < 4; ++i)
+    {
+        sum += tet.F[i] > isoval ? 1 : 0; 
+        _case[i] = tet.F[i] > isoval ? 1 : 0;
+    }
+    // Return if we aren't drawing the tet
+    switch (sum)
+    {
+        // All F > isoval || All F < isoval
+        case 0:
+        case 4:
+            return;
+        // 1 F > isoval || 1 F < isoval
+        case 1:
+        case 3:
+            float pts[3][3]; 
+            /*
+            tl.AddTriangle(tet.X[0], tet.Y[0], tet.Z[0],
+                           tet.X[1], tet.Y[1], tet.Z[1],
+                           tet.X[2], tet.Y[2], tet.Z[2]);
+            */
+            break;
+        // 2 F > isoval && 2 F < isoval
+        // Special case where we have to make 2 triangles
+        case 2:
+            break;
+        default:
+            fprintf(stderr, "An error occurred and we got a tetrahedron that \
+                    cannot exist\n");
+            abort();
+    }
+}
+
+/*
+void
+DetermineCase(Tetrahedron &tet, float isoval, float F, int &id)
+{
+    std::bitset<4> _case;
+    for (size_t i = 0; i < _case.size(); ++i)
+        _case[i] = F[vertex[i]] > isoval ? 1 : 0;
+    id = (int)_case.to_ulong();
+}
+*/
 
 int main()
 {
