@@ -57,6 +57,7 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkSmartPointer.h>
 
+#include <bitset>
 
 // ****************************************************************************
 //  Function: GetNumberOfPoints
@@ -304,6 +305,8 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
         sum += tet.F[i] > isoval ? 1 : 0; 
         _case[i] = tet.F[i] > isoval ? 1 : 0;
     }
+    float pts[4][3]; // We have potentially 4 points to use
+    size_t point = 0;
     // Return if we aren't drawing the tet
     switch (sum)
     {
@@ -314,23 +317,92 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
         // 1 F > isoval || 1 F < isoval
         case 1:
         case 3:
-            float pts[3][3]; 
+        {
+            point = 0;
+            for (size_t i = 0; i < 4; ++i)
+            {
+                for (size_t j = i+1; j < 4; ++j)
+                {
+                    if (( _case[i] == 1 && _case[j] == 0) ||
+                        ( _case[i] == 0 && _case[j] == 1))
+                    {
+                        pts[point][0] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                                        tet.X[i], tet.X[j]);
+                        pts[point][1] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                                        tet.Y[i], tet.Y[j]);
+                        pts[point][2] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                                        tet.Z[i], tet.Z[j]);
+                        point++;
+                        if (point == 3)
+                        {
+                            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                                           pts[1][0], pts[1][1], pts[1][2],
+                                           pts[2][0], pts[2][1], pts[2][2]);
+                            return;
+                        }
+                        else if ( point > 3)
+                        {
+                            fprintf(stderr, "We got %lu points!\n", point);
+                            abort();
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        // 2 F > isoval && 2 F < isoval
+        // Special case where we have to make 2 triangles
+        case 2:
+        {
+            point = 0;
+            for (size_t i = 0; i < 4; ++i)
+            {
+                for (size_t j = i+1; j < 4; ++j)
+                {
+                    if (( _case[i] == 1 && _case[j] == 0) ||
+                        ( _case[i] == 0 && _case[j] == 1))
+                    {
+                        pts[point][0] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                                        tet.X[i], tet.X[j]);
+                        pts[point][1] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                                        tet.Y[i], tet.Y[j]);
+                        pts[point][2] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                                        tet.Z[i], tet.Z[j]);
+                        point++;
+                        if (point == 4)
+                        {
+                            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                                           pts[1][0], pts[1][1], pts[1][2],
+                                           pts[2][0], pts[2][1], pts[2][2]);
+                            tl.AddTriangle(pts[0][3], pts[0][1], pts[0][2],
+                                           pts[1][3], pts[1][1], pts[1][2],
+                                           pts[2][3], pts[2][1], pts[2][2]);
+                            return;
+                        }
+                        else if ( point > 4)
+                        {
+                            fprintf(stderr, "We got %lu points!\n", point);
+                            abort();
+                        }
+                    }
+
+                }
+            }
+            return;
+            break;
+        }
+        default:
+            fprintf(stderr, "An error occurred and we got a tetrahedron that \
+                    cannot exist\n");
+            abort();
+            break;
+    }
+}
             /*
             tl.AddTriangle(tet.X[0], tet.Y[0], tet.Z[0],
                            tet.X[1], tet.Y[1], tet.Z[1],
                            tet.X[2], tet.Y[2], tet.Z[2]);
             */
-            break;
-        // 2 F > isoval && 2 F < isoval
-        // Special case where we have to make 2 triangles
-        case 2:
-            break;
-        default:
-            fprintf(stderr, "An error occurred and we got a tetrahedron that \
-                    cannot exist\n");
-            abort();
-    }
-}
 
 /*
 void
