@@ -317,6 +317,9 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
         // 1 F > isoval || 1 F < isoval
         case 1:
         case 3:
+        // 2 F > isoval && 2 F < isoval
+        // Special case where we have to make 2 triangles
+        case 2:
         {
             point = 0;
             for (size_t i = 0; i < 4; ++i)
@@ -338,45 +341,14 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
                             tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
                                            pts[1][0], pts[1][1], pts[1][2],
                                            pts[2][0], pts[2][1], pts[2][2]);
-                            return;
+                            // Return if case 1 or 3
+                            if (sum != 2) return;
                         }
-                        else if ( point > 3)
+                        else if ( point == 4)
                         {
-                            fprintf(stderr, "We got %lu points!\n", point);
-                            abort();
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        // 2 F > isoval && 2 F < isoval
-        // Special case where we have to make 2 triangles
-        case 2:
-        {
-            point = 0;
-            for (size_t i = 0; i < 4; ++i)
-            {
-                for (size_t j = i+1; j < 4; ++j)
-                {
-                    if (( _case[i] == 1 && _case[j] == 0) ||
-                        ( _case[i] == 0 && _case[j] == 1))
-                    {
-                        pts[point][0] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
-                                                        tet.X[i], tet.X[j]);
-                        pts[point][1] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
-                                                        tet.Y[i], tet.Y[j]);
-                        pts[point][2] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
-                                                        tet.Z[i], tet.Z[j]);
-                        point++;
-                        if (point == 4)
-                        {
-                            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
-                                           pts[1][0], pts[1][1], pts[1][2],
-                                           pts[2][0], pts[2][1], pts[2][2]);
-                            tl.AddTriangle(pts[0][3], pts[0][1], pts[0][2],
-                                           pts[1][3], pts[1][1], pts[1][2],
-                                           pts[2][3], pts[2][1], pts[2][2]);
+                            tl.AddTriangle(pts[2][0], pts[2][1], pts[2][2],
+                                           pts[3][0], pts[3][1], pts[3][2],
+                                           pts[0][0], pts[0][1], pts[0][2]);
                             return;
                         }
                         else if ( point > 4)
