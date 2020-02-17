@@ -58,6 +58,7 @@
 #include <vtkSmartPointer.h>
 
 #include <bitset>
+#include <iostream>
 
 // ****************************************************************************
 //  Function: GetNumberOfPoints
@@ -294,12 +295,34 @@ InterpolateEdge(const float isoValue, const float F_a, const float F_b,
     return ( (isoValue - F_a)/(F_b - F_a) * (b - a)) + a;
 }
 
+void
+MakeVectors(float pts[4][3], float vec[4][3])
+{
+    // X
+    vec[0][0] = pts[1][0] - pts[0][0];
+    vec[1][0] = pts[2][0] - pts[1][0];
+    vec[2][0] = pts[3][0] - pts[2][0];
+    vec[3][0] = pts[0][0] - pts[3][0];
+    // Y
+    vec[0][1] = pts[1][1] - pts[0][1];
+    vec[1][1] = pts[2][1] - pts[1][1];
+    vec[2][1] = pts[3][1] - pts[2][1];
+    vec[3][1] = pts[0][1] - pts[3][1];
+    // Z
+    vec[0][2] = pts[1][2] - pts[0][2];
+    vec[1][2] = pts[2][2] - pts[1][2];
+    vec[2][2] = pts[3][2] - pts[2][2];
+    vec[3][2] = pts[0][2] - pts[3][2];
+}
+
 // TODO
 void 
 IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
 {
+    float eps = 0.00001;
     int sum = 0;
     std::bitset<4> _case;
+    // Determine cases
     for (size_t i = 0; i < 4; ++i)
     {
         sum += tet.F[i] > isoval ? 1 : 0; 
@@ -322,33 +345,91 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
         case 2:
         {
             point = 0;
-            for (size_t i = 0; i < 4; ++i)
+            for (size_t i = 0; i < 3; ++i)
             {
                 for (size_t j = i+1; j < 4; ++j)
                 {
                     if (( _case[i] == 1 && _case[j] == 0) ||
                         ( _case[i] == 0 && _case[j] == 1))
                     {
+                        /*
+                        if (sum == 2)
+                        {
+                            //printf("_case[%d] = %d, _case[%d] = %d\n", _case[i], _case[j]);
+                            std::cout << "_case = " << _case << std::endl;
+                            std::cout << _case[0] << _case[1] << _case[2] << _case[3] << std::endl;
+                            std::cout << "_case[" << i << "] = " << _case[i] 
+                                      << " _case[" << j << "] = " << _case[j]
+                                      << std::endl;
+                        }
+                        */
                         pts[point][0] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
                                                         tet.X[i], tet.X[j]);
                         pts[point][1] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
                                                         tet.Y[i], tet.Y[j]);
                         pts[point][2] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
                                                         tet.Z[i], tet.Z[j]);
-                        point++;
-                        if (point == 3)
+                        if (point == 2)
                         {
+                            //std::cout << "case: " << sum << " binary: " << _case << std::endl;
                             tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
                                            pts[1][0], pts[1][1], pts[1][2],
                                            pts[2][0], pts[2][1], pts[2][2]);
                             // Return if case 1 or 3
                             if (sum != 2) return;
                         }
-                        else if ( point == 4)
+                        else if ( point == 3)
                         {
-                            tl.AddTriangle(pts[2][0], pts[2][1], pts[2][2],
-                                           pts[3][0], pts[3][1], pts[3][2],
-                                           pts[0][0], pts[0][1], pts[0][2]);
+                            //std::cout << "case: " << sum << " binary: " << _case << std::endl;
+                            float myVec[4][3];
+                            MakeVectors(pts, myVec);
+                            float vecsum[3] = {pts[0][0] + myVec[0][0] + myVec[1][0] + myVec[2][0],
+                                            pts[0][1] + myVec[0][1] + myVec[1][1] + myVec[2][1],
+                                            pts[0][2] + myVec[0][2] + myVec[1][2] + myVec[3][2]};
+                            /*
+                            printf("sum first two vecs: (%f,%f,%f)\n",
+                                    vecsum[0], vecsum[1], vecsum[2]);
+                                    */
+
+                            if (vecsum[0] - pts[3][0] < eps &&
+                                vecsum[1] - pts[3][1] < eps &&
+                                vecsum[2] - pts[3][2] < eps)
+                            {
+                                printf("option 1\n");
+                                tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                                               pts[2][0], pts[2][1], pts[2][2],
+                                               pts[3][0], pts[3][1], pts[3][2]);
+                            }
+                            else if (vecsum[0] - pts[2][0] < eps &&
+                                     vecsum[1] - pts[2][1] < eps &&
+                                     vecsum[2] - pts[2][2] < eps)
+                            {
+                                printf("Option 2\n");
+                                tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                                               pts[1][0], pts[1][1], pts[1][2],
+                                               pts[3][0], pts[3][1], pts[3][2]);
+                            }
+                            /*
+                            else if(pts[3][0] - vecsum[0] < eps
+                            {
+                                tl.AddTriangle(pts[1][0], pts[1][1], pts[1][2],
+                                               pts[3][0], pts[3][1], pts[3][2],
+                                               pts[2][0], pts[2][1], pts[2][2]);
+                            }
+                            */
+                            else
+                            {
+                                printf("We have a third option?\n");
+                                printf("Vecsum (%f,%f,%f)\n", vecsum[0], vecsum[1], vecsum[2]);
+                                printf("Have points, in order \
+                                        \n(%2.2f,%f,%f), (%f,%f,%f), (%f,%f,%f), (%f,%f,%f)\n",
+                                        pts[0][0], pts[0][1], pts[0][2],
+                                        pts[1][0], pts[1][1], pts[1][2],
+                                        pts[2][0], pts[2][1], pts[2][2],
+                                        pts[3][0], pts[3][1], pts[3][2]);
+                                abort();
+                            }
+
                             return;
                         }
                         else if ( point > 4)
@@ -356,6 +437,7 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
                             fprintf(stderr, "We got %lu points!\n", point);
                             abort();
                         }
+                        point++;
                     }
 
                 }
@@ -370,11 +452,6 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
             break;
     }
 }
-            /*
-            tl.AddTriangle(tet.X[0], tet.Y[0], tet.Z[0],
-                           tet.X[1], tet.Y[1], tet.Z[1],
-                           tet.X[2], tet.Y[2], tet.Z[2]);
-            */
 
 /*
 void
