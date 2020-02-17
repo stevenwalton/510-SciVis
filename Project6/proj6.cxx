@@ -296,6 +296,18 @@ InterpolateEdge(const float isoValue, const float F_a, const float F_b,
 }
 
 void
+Interpolate(const float isoval, 
+            Tetrahedron &tet, float *pts, int i, int j)
+{
+    pts[0] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                    tet.X[i], tet.X[j]);
+    pts[1] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                    tet.Y[i], tet.Y[j]);
+    pts[2] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
+                                    tet.Z[i], tet.Z[j]);
+}
+
+void
 MakeVectors(float pts[4][3], float vec[4][3])
 {
     // X
@@ -328,23 +340,24 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
         sum += tet.F[i] > isoval ? 1 : 0; 
         _case[i] = tet.F[i] > isoval ? 1 : 0;
     }
-    float pts[4][3]; // We have potentially 4 points to use
+    float pts[4][3];
     size_t point = 0;
-    // Return if we aren't drawing the tet
-    switch (sum)
+    int id = _case.to_ulong();
+    switch(id)
     {
-        // All F > isoval || All F < isoval
         case 0:
-        case 4:
+        case 16:
             return;
-        // 1 F > isoval || 1 F < isoval
+        // Single Triangle cases are isomorphic
         case 1:
-        case 3:
-        // 2 F > isoval && 2 F < isoval
-        // Special case where we have to make 2 triangles
         case 2:
+        case 4:
+        case 7:
+        case 8:
+        case 11:
+        case 13:
+        case 14:
         {
-            point = 0;
             for (size_t i = 0; i < 3; ++i)
             {
                 for (size_t j = i+1; j < 4; ++j)
@@ -352,117 +365,113 @@ IsosurfaceTet(Tetrahedron &tet, TriangleList &tl, float isoval)
                     if (( _case[i] == 1 && _case[j] == 0) ||
                         ( _case[i] == 0 && _case[j] == 1))
                     {
-                        /*
-                        if (sum == 2)
-                        {
-                            //printf("_case[%d] = %d, _case[%d] = %d\n", _case[i], _case[j]);
-                            std::cout << "_case = " << _case << std::endl;
-                            std::cout << _case[0] << _case[1] << _case[2] << _case[3] << std::endl;
-                            std::cout << "_case[" << i << "] = " << _case[i] 
-                                      << " _case[" << j << "] = " << _case[j]
-                                      << std::endl;
-                        }
-                        */
-                        pts[point][0] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
-                                                        tet.X[i], tet.X[j]);
-                        pts[point][1] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
-                                                        tet.Y[i], tet.Y[j]);
-                        pts[point][2] = InterpolateEdge(isoval, tet.F[i], tet.F[j],
-                                                        tet.Z[i], tet.Z[j]);
-                        if (point == 2)
-                        {
-                            //std::cout << "case: " << sum << " binary: " << _case << std::endl;
-                            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
-                                           pts[1][0], pts[1][1], pts[1][2],
-                                           pts[2][0], pts[2][1], pts[2][2]);
-                            // Return if case 1 or 3
-                            if (sum != 2) return;
-                        }
-                        else if ( point == 3)
-                        {
-                            //std::cout << "case: " << sum << " binary: " << _case << std::endl;
-                            float myVec[4][3];
-                            MakeVectors(pts, myVec);
-                            float vecsum[3] = {pts[0][0] + myVec[0][0] + myVec[1][0] + myVec[2][0],
-                                            pts[0][1] + myVec[0][1] + myVec[1][1] + myVec[2][1],
-                                            pts[0][2] + myVec[0][2] + myVec[1][2] + myVec[3][2]};
-                            /*
-                            printf("sum first two vecs: (%f,%f,%f)\n",
-                                    vecsum[0], vecsum[1], vecsum[2]);
-                                    */
-
-                            if (vecsum[0] - pts[3][0] < eps &&
-                                vecsum[1] - pts[3][1] < eps &&
-                                vecsum[2] - pts[3][2] < eps)
-                            {
-                                printf("option 1\n");
-                                tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
-                                               pts[2][0], pts[2][1], pts[2][2],
-                                               pts[3][0], pts[3][1], pts[3][2]);
-                            }
-                            else if (vecsum[0] - pts[2][0] < eps &&
-                                     vecsum[1] - pts[2][1] < eps &&
-                                     vecsum[2] - pts[2][2] < eps)
-                            {
-                                printf("Option 2\n");
-                                tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
-                                               pts[1][0], pts[1][1], pts[1][2],
-                                               pts[3][0], pts[3][1], pts[3][2]);
-                            }
-                            /*
-                            else if(pts[3][0] - vecsum[0] < eps
-                            {
-                                tl.AddTriangle(pts[1][0], pts[1][1], pts[1][2],
-                                               pts[3][0], pts[3][1], pts[3][2],
-                                               pts[2][0], pts[2][1], pts[2][2]);
-                            }
-                            */
-                            else
-                            {
-                                printf("We have a third option?\n");
-                                printf("Vecsum (%f,%f,%f)\n", vecsum[0], vecsum[1], vecsum[2]);
-                                printf("Have points, in order \
-                                        \n(%2.2f,%f,%f), (%f,%f,%f), (%f,%f,%f), (%f,%f,%f)\n",
-                                        pts[0][0], pts[0][1], pts[0][2],
-                                        pts[1][0], pts[1][1], pts[1][2],
-                                        pts[2][0], pts[2][1], pts[2][2],
-                                        pts[3][0], pts[3][1], pts[3][2]);
-                                abort();
-                            }
-
-                            return;
-                        }
-                        else if ( point > 4)
-                        {
-                            fprintf(stderr, "We got %lu points!\n", point);
-                            abort();
-                        }
+                        Interpolate(isoval, tet, pts[point], i,j);
                         point++;
                     }
-
                 }
             }
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[1][0], pts[1][1], pts[1][2],
+                           pts[2][0], pts[2][1], pts[2][2]);
             return;
-            break;
+        }
+        // Double triangle cases aren't
+        // Spent too much time trying to be smart, so we're doing this.
+        case 3:
+        {
+            Interpolate(isoval, tet, pts[0], 0, 3);
+            Interpolate(isoval, tet, pts[1], 0, 2);
+            Interpolate(isoval, tet, pts[2], 1, 2);
+            Interpolate(isoval, tet, pts[3], 1, 3);
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[1][0], pts[1][1], pts[1][2],
+                           pts[2][0], pts[2][1], pts[2][2]);
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[2][0], pts[2][1], pts[2][2],
+                           pts[3][0], pts[3][1], pts[3][2]);
+            return;
+        }
+        case 5:
+        {
+            Interpolate(isoval, tet, pts[0], 0, 3);
+            Interpolate(isoval, tet, pts[1], 0, 1);
+            Interpolate(isoval, tet, pts[2], 2, 1);
+            Interpolate(isoval, tet, pts[3], 2, 3);
+
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[1][0], pts[1][1], pts[1][2],
+                           pts[2][0], pts[2][1], pts[2][2]);
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[2][0], pts[2][1], pts[2][2],
+                           pts[3][0], pts[3][1], pts[3][2]);
+            return;
+        }
+        case 6:
+        {
+            Interpolate(isoval, tet, pts[0], 1, 0);
+            Interpolate(isoval, tet, pts[1], 1, 3);
+            Interpolate(isoval, tet, pts[2], 2, 3);
+            Interpolate(isoval, tet, pts[3], 2, 0);
+
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[1][0], pts[1][1], pts[1][2],
+                           pts[2][0], pts[2][1], pts[2][2]);
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[2][0], pts[2][1], pts[2][2],
+                           pts[3][0], pts[3][1], pts[3][2]);
+            return;
+        }
+        case 9:
+        {
+            Interpolate(isoval, tet, pts[0], 0, 1);
+            Interpolate(isoval, tet, pts[1], 0, 2);
+            Interpolate(isoval, tet, pts[2], 3, 2);
+            Interpolate(isoval, tet, pts[3], 3, 1);
+
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[1][0], pts[1][1], pts[1][2],
+                           pts[2][0], pts[2][1], pts[2][2]);
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[2][0], pts[2][1], pts[2][2],
+                           pts[3][0], pts[3][1], pts[3][2]);
+            return;
+        }
+        case 10:
+        {
+            Interpolate(isoval, tet, pts[0], 1, 0);
+            Interpolate(isoval, tet, pts[1], 1, 2);
+            Interpolate(isoval, tet, pts[2], 3, 2);
+            Interpolate(isoval, tet, pts[3], 3, 0);
+
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[1][0], pts[1][1], pts[1][2],
+                           pts[2][0], pts[2][1], pts[2][2]);
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[2][0], pts[2][1], pts[2][2],
+                           pts[3][0], pts[3][1], pts[3][2]);
+            return;
+        }
+        case 12:
+        {
+            Interpolate(isoval, tet, pts[0], 2, 0);
+            Interpolate(isoval, tet, pts[1], 2, 1);
+            Interpolate(isoval, tet, pts[2], 3, 1);
+            Interpolate(isoval, tet, pts[3], 3, 0);
+
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[1][0], pts[1][1], pts[1][2],
+                           pts[2][0], pts[2][1], pts[2][2]);
+            tl.AddTriangle(pts[0][0], pts[0][1], pts[0][2],
+                           pts[2][0], pts[2][1], pts[2][2],
+                           pts[3][0], pts[3][1], pts[3][2]);
+            return;
         }
         default:
-            fprintf(stderr, "An error occurred and we got a tetrahedron that \
-                    cannot exist\n");
-            abort();
             break;
     }
+
 }
 
-/*
-void
-DetermineCase(Tetrahedron &tet, float isoval, float F, int &id)
-{
-    std::bitset<4> _case;
-    for (size_t i = 0; i < _case.size(); ++i)
-        _case[i] = F[vertex[i]] > isoval ? 1 : 0;
-    id = (int)_case.to_ulong();
-}
-*/
 
 int main()
 {
