@@ -13,3 +13,6 @@ Makefile
 *.aux
 *.log
 *.out
+*.nav
+*.toc
+*.snm
