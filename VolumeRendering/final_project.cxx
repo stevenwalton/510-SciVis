@@ -19,46 +19,122 @@
 #include <vtkType.h>
 
 #define PI 3.141592654
+#define DIM 3
 
-template<typename T>
-void UnitNorm(const T *a, const T *b, T *c)
+//template<typename T>
+void CrossUnitNorm(const double *a, const double *b, double *c)
 {
     vtkMath::Cross(a,b,c);
     vtkMath::Normalize(c);
 }
 
+class Ray
+{
+    private:
+        double          direction[DIM];
+        double          origin[DIM];
+        double          dx[DIM];
+        double          dy[DIM];
+        int             samples;
+
+    public:
+        Ray(double *origin, int samples);
+        void            Setdx(double*);
+        void            Setdy(double*);
+        void            SetDirection(double*);
+        inline double   GetRayDirection(int i){return direction[i];};
+        void            PrintRayInfo();
+};
+
+Ray::Ray(double *o, int s)
+{
+    for (std::size_t i = 0; i < DIM; ++i)
+        origin[i] = o[i];
+    samples = s;
+}
+
+void
+Ray::Setdx(double *x)
+{
+    for (std::size_t i = 0; i < DIM; ++i)
+        dx[i] = x[i];
+}
+
+void
+Ray::Setdy(double *y)
+{
+    for (std::size_t i = 0; i < DIM; ++i)
+        dy[i] = y[i];
+}
+
+void
+Ray::SetDirection(double *d)
+{
+    for (std::size_t i = 0; i < DIM; ++i)
+        direction[i] = d[i];
+}
+
+void
+Ray::PrintRayInfo()
+{
+    printf("========== Ray Info ==========\n");
+    printf("Direction <%f,%f,%f>\n", direction[0], direction[1], direction[2]);
+    printf("Origin <%f,%f,%f>\n", origin[0], origin[1], origin[2]);
+    printf("delta_x <%f,%f,%f>\n", dx[0], dx[1], dx[2]);
+    printf("delta_y <%f,%f,%f>\n", dy[0], dy[1], dy[2]);
+    printf("samples %d\n", samples);
+    printf("==============================\n");
+}
+
+
 struct Camera
 {
     double          near, far;
-    double          angle;
+    double          angle; // fov_x and fov_y
     double          W,H;
-    double          position[3];
-    double          focus[3];
-    double          up[3];
-    double          look[3];
-    double          u[3];
-    double          v[3];
-    double          fov[2];
-    double          dx[3];
-    double          dy[3];
+    double          position[DIM];
+    double          focus[DIM];
+    double          up[DIM];
+    double          look[DIM];
+    double          u[DIM];
+    double          v[DIM];
     void            GetDelta(double*, double*, double*, double*);
-    void            Pixel2Ray();
+    void            Pixel2Ray(Ray&, int, int);
+    inline double*  GetOrigin(){return position;};
 };
 
 void
-Camera::Pixel2Ray()
+Camera::Pixel2Ray(Ray &ray, int i, int j)
 {
-    for( size_t i = 0; i < 3; ++i)
-        look[i] = this->focus[i] - this->position[i];
-    UnitNorm(this->look, this->up, this->u);
-    UnitNorm(this->look, this->u, this->v);
-    for( size_t i = 0; i < 3; ++i )
+    double dx[DIM];
+    double dy[DIM];
+    double direction[DIM];
+    for( size_t i = 0; i < DIM; ++i)
+        look[i] = focus[i] - position[i];
+    CrossUnitNorm(look, up, u);
+    //printf("ru = <%f,%f,%f>\n", u[0], u[1], u[2]);
+    CrossUnitNorm(look, u, v);
+    //printf("rv = <%f,%f,%f>\n", v[0], v[1], v[2]);
+    // NOTE: look is normalized at this point
+    for( size_t i = 0; i < DIM; ++i )
     {
-        this->dx[i] = 2.*tan(fov[0]/2)/this->W * u[i];
-        this->dy[i] = 2.*tan(fov[1]/2)/this->H * v[i];
+        dx[i] = 2.*tan(angle/2)/W * u[i];
+        dy[i] = 2.*tan(angle/2)/H * v[i];
     }
+    ray.Setdx(dx);
+    ray.Setdy(dy);
     //printf("dx = <%f,%f,%f>\n",dx[0],dx[1],dx[2]);
     //printf("dy = <%f,%f,%f>\n",dy[0],dy[1],dy[2]);
+    // Direction
+    double look_norm = vtkMath::Normalize(look);
+    //printf("look = <%f,%f,%f>\n", look[0], look[1], look[2]);
+    //printf("look norm = %f\n", vtkMath::Normalize(look));
+    direction[0] = look[0] + ((2*i+1 - W)/2)*dx[0] + ((2*j+1-H)/2)*dy[0];
+    direction[1] = look[1] + ((2*i+1 - W)/2)*dx[1] + ((2*j+1-H)/2)*dy[1];
+    direction[2] = look[2] + ((2*i+1 - W)/2)*dx[2] + ((2*j+1-H)/2)*dy[2];
+    ray.SetDirection(direction);
+    //printf("look = <%f,%f,%f>, W = %f, H = %f\n", look[0], look[1], look[2], W, H);
+    //printf("Direction <%f,%f,%f>\n", direction[0], direction[1], direction[2]);
 }
 
 struct TransferFunction
@@ -104,29 +180,32 @@ SetupCamera(void)
     rv.up[0] = 0;
     rv.up[1] = -1;
     rv.up[2] = 0;
-    rv.angle = 30;
+    rv.angle = 30 * PI/180; // Fix to be radians
     rv.near = 7.5e+7;
     rv.far = 1.4e+8;
     rv.position[0] = -8.25e+7;
     rv.position[1] = -3.45e+7;
     rv.position[2] = 3.35e+7;
     // my additions
-    rv.fov[0] = rv.angle * PI/180; // Radians
-    rv.fov[1] = rv.angle * PI/180; // Radians
-    rv.W = 1024;
-    rv.H = 1024;
+    //rv.fov[0] = rv.angle * PI/180; // Radians
+    //rv.fov[1] = rv.angle * PI/180; // Radians
+    //rv.W = 1024;
+    //rv.H = 1024;
+    rv.W = 100;
+    rv.H = 100;
 
     return rv;
 }
 
 int main()
 {
+    int samples = 256;
     vtkSmartPointer<vtkDataSetReader> rdr =
         vtkSmartPointer<vtkDataSetReader>::New();
     rdr->SetFileName("astro64.vtk");
     rdr->Update();
 
-    int dims[3];
+    int dims[DIM];
     //vtkSmartPointer<vtkRectilinearGrid> rgrid = 
     //    vtkSmartPointer<vtkRectilinearGrid>::Take(vtkRectilinearGrid::SafeDownCast(rdr->GetOutput()));
     //rgrid->GetDimensions(dims);
@@ -139,7 +218,10 @@ int main()
     float *F = (float*) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
 
     Camera camera = SetupCamera();
-    camera.Pixel2Ray();
+    Ray ray(camera.GetOrigin(), samples);// = new Ray();
+    camera.Pixel2Ray(ray, 50, 50);
+    //printf("ray direction <%f,%f,%f>\n", ray.GetRayDirection(0), ray.GetRayDirection(1), ray.GetRayDirection(2));
+    ray.PrintRayInfo();
 
 
 

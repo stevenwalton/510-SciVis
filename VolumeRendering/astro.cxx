@@ -1,4 +1,5 @@
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 struct Camera
 {
@@ -108,7 +109,6 @@ SetupCamera(void)
 }
 
 
-/*
 int main()
 {
     TransferFunction tf = SetupTransferFunction();
@@ -117,4 +117,3 @@ int main()
         cerr << i << ": " << (int) tf.colors[3*i] << ", " << (int) tf.colors[3*i+1] << ", " << (int) tf.colors[3*i+2] << ", " << tf.opacities[i] << endl;
     }
 }
- */
