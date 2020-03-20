@@ -9,7 +9,7 @@
 #include <vtkUnsignedCharArray.h>
 #include <vtkFloatArray.h>
 #include <vtkCellArray.h>
-//#include <vtkDoubleArray.h>
+#include <vtkDoubleArray.h>
 // My VTK
 #include <vtkMath.h>
 #include <vtkDataSetReader.h>
@@ -97,10 +97,8 @@ struct TransferFunction
     // and the opacity at "opacities[5]".
     void ApplyTransferFunction(double value, unsigned char *RGB, double &opacity)
     {
-        //int bin = GetBin(value);
         if (value < min || value > max) return;
         int bin = (value - min) * (256 / (max - min));
-        //printf("Got bin %d\n", bin);
         RGB[0] = colors[3*bin+0];
         RGB[1] = colors[3*bin+1];
         RGB[2] = colors[3*bin+2];
@@ -258,32 +256,19 @@ Ray::Sample(Camera &camera, TransferFunction &tf, const int *dims, const float *
             offset[j] = direction[j]*dist;
             sample[j] = origin[j] + offset[j];
         }
-        //printf("Origin <%f,%f,%f>\nOffset <%f,%f,%f>\n",
-        //        origin[0], origin[1], origin[2],
-        //        offset[0], offset[1], offset[2]);
-        //printf("Sampling at <%f,%f,%f>\n", sample[0], sample[1], sample[2]);
         GetValue(sample, dims, X, Y, Z, F, sampleValue);
-        //printf("Got sample value %f\n", sampleValue);
         tf.ApplyTransferFunction(sampleValue, bg_color, bg_opacity);
         bg_opacity = 1 - pow( (1-bg_opacity), 500. / (double)SAMPLES);
 
         color[0] = color[0] + (1-opacity) * bg_opacity * (bg_color[0] / 255.);
         color[1] = color[1] + (1-opacity) * bg_opacity * (bg_color[1] / 255.);
-        //printf("Color[1] = %u\n", color[1]);
         color[2] = color[2] + (1-opacity) * bg_opacity * (bg_color[2] / 255.);
         opacity = opacity + (1-opacity)*bg_opacity;
         dist += stepSize;
-        //printf("Sample[%d] was mapped by transfer function to %u,%u,%u\n opacity is now %f\n bg_opacity is %f\n", i, 
-        //        bg_color[0], bg_color[1], bg_color[2], opacity, bg_opacity);
-        //printf("Got color <%f,%f,%f>\n", color[0], color[1], color[2]);
-        //printf("Opacity %f\n", opacity);
-        //if (i == 16) exit(0);
-        //if (i == 21) exit(0);
     }
     pixel[0] = (unsigned char)(color[0] * 255);
     pixel[1] = (unsigned char)(color[1] * 255);
     pixel[2] = (unsigned char)(color[2] * 255);
-    //printf("Got colors <%u,%u,%u>\n", pixel[0], pixel[1], pixel[2]);
 }
 
 void
@@ -293,9 +278,7 @@ Ray::GetValue(const double *pt, const int *dims,
 {
     int idx[3];
     GenIndices(pt, dims, X, Y, Z, idx);
-    //printf("Got vertex <%d,%d,%d>\n", idx[0], idx[1], idx[2]);
     LERPCell(pt, dims, X, Y, Z, F, idx, val);
-    //printf("Value = %f\n",val);
 }
 
 void 
@@ -337,7 +320,6 @@ Ray::LERPCell(const double *pt, const int *dims, const float *X, const float *Y,
     tmpidx[2] = idx[2] + 1;
     index[6] = GetPointIndex(tmpidx, dims); // 0,1,1
     tmpidx[0] = idx[0] + 1;
-    //tmpidx[2] = idx[2] + 1;
     index[7] = GetPointIndex(tmpidx, dims); // 1,1,1
 
 
@@ -388,26 +370,13 @@ int main()
     {
         for (size_t j = 0; j < HEIGHT; ++j)
         {
-            //if (i == 50 && j == 50)
-            //if (i == 19 && j == 76)
-            //{
             ray.Initialize(camera,i,j);
-            //printf("ray <%f,%f,%f>\n", ray.direction[0], ray.direction[1], ray.direction[2]);
             unsigned char pixelColor[3] = {0,0,0};
             ray.Sample(camera, tf, dims, X, Y, Z, F, pixelColor);
-            //exit(0);
             int index = (j*WIDTH + i)*3;
             outImgData[index + 0] = pixelColor[0];
             outImgData[index + 1] = pixelColor[1];
             outImgData[index + 2] = pixelColor[2];
-            //printf("Imagedata[%d] = %u\n", index, outImgData[index]);
-            //printf("Imagedata[%d] = %u\n", index+1, outImgData[index+1]);
-            //printf("Imagedata[%d] = %u\n", index+2, outImgData[index+2]);
-            //printf("Got out img data <%u,%u,%u>\nFrom <%u,%u,%u>\n",
-            //        outImgData[index], outImgData[index+1], outImgData[index+2],
-            //        pixelColor[0], pixelColor[1], pixelColor[2]);
-            //}
-            //if (i == 19 && j == 76) exit(0);
         }
     }
     vtkPNGWriter *writer = vtkPNGWriter::New();
