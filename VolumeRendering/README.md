@@ -14,3 +14,7 @@ these specifications.  Your deliverables are two-fold:
     (1) your code
     (2) the image your code produces
 
+
+# Solution
+----------
+![answer](output.png)
